@@ -7,14 +7,22 @@ function onSay(player, words, param)
 		return false
 	end
 
+	local split = param:split(",")
+	local pType = split[1]
+	local level = split[2]
+
+	if not level then
+		level = player:getLevel()
+	end
+
 	local position = player:getPosition()
-	local monster = Game.createMonster(param, position)
-	if monster then
-		player:addSummon(monster)
-		position:sendMagicEffect(CONST_ME_MAGIC_RED)
+	local pokemon = Game.createPokemon(pType, level, position)
+	if pokemon then
+		player:addSummon(pokemon)
+		position:sendEffect(CONST_ME_MAGIC_RED)
 	else
 		player:sendCancelMessage("There is not enough room.")
-		position:sendMagicEffect(CONST_ME_POFF)
+		position:sendEffect(CONST_ME_POFF)
 	end
 	return false
 end

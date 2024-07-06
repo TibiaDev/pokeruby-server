@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +37,7 @@ class ValueCallback final : public CallBack
 {
 	public:
 		explicit ValueCallback(formulaType_t type): type(type) {}
-		void getMinMaxValues(Player* player, CombatDamage& damage, bool useCharges) const;
+		void getDamageValue(Pokemon* pokemon, CombatDamage& damage) const;
 
 	private:
 		formulaType_t type;
@@ -65,16 +66,15 @@ struct CombatParams {
 
 	ConditionType_t dispelType = CONDITION_NONE;
 	CombatType_t combatType = COMBAT_NONE;
-	CombatOrigin origin = ORIGIN_SPELL;
+	CombatOrigin origin = ORIGIN_MOVE;
 
-	uint8_t impactEffect = CONST_ME_NONE;
-	uint8_t distanceEffect = CONST_ANI_NONE;
+	uint16_t impactEffect = CONST_ME_NONE;
+	uint16_t distanceEffect = CONST_ANI_NONE;
+	uint16_t impactSound = CONST_SE_NONE;
+	uint16_t distanceSound = CONST_SE_NONE;
 
-	bool blockedByArmor = false;
-	bool blockedByShield = false;
 	bool targetCasterOrTopMost = false;
 	bool aggressive = true;
-	bool useCharges = false;
 };
 
 using CombatFunction = std::function<void(Creature*, Creature*, const CombatParams&, CombatDamage*)>;
@@ -245,9 +245,6 @@ class Combat
 		static void doCombatHealth(Creature* caster, Creature* target, CombatDamage& damage, const CombatParams& params);
 		static void doCombatHealth(Creature* caster, const Position& position, const AreaCombat* area, CombatDamage& damage, const CombatParams& params);
 
-		static void doCombatMana(Creature* caster, Creature* target, CombatDamage& damage, const CombatParams& params);
-		static void doCombatMana(Creature* caster, const Position& position, const AreaCombat* area, CombatDamage& damage, const CombatParams& params);
-
 		static void doCombatCondition(Creature* caster, Creature* target, const CombatParams& params);
 		static void doCombatCondition(Creature* caster, const Position& position, const AreaCombat* area, const CombatParams& params);
 
@@ -265,8 +262,10 @@ class Combat
 		static ReturnValue canDoCombat(Creature* caster, Tile* tile, bool aggressive);
 		static ReturnValue canDoCombat(Creature* attacker, Creature* target);
 		static void postCombatEffects(Creature* caster, const Position& pos, const CombatParams& params);
+		static void postCombatSoundEffects(const SpectatorHashSet& spectators, const CombatParams& params);
 
-		static void addDistanceEffect(Creature* caster, const Position& fromPos, const Position& toPos, uint8_t effect);
+		static void addDistanceEffect(Creature* caster, const Position& fromPos, const Position& toPos, uint16_t effect);
+		static void addDistanceSound(Creature* caster, const Position& fromPos, const Position& toPos, uint16_t effect);
 
 		void doCombat(Creature* caster, Creature* target) const;
 		void doCombat(Creature* caster, const Position& position) const;
@@ -288,6 +287,9 @@ class Combat
 		void postCombatEffects(Creature* caster, const Position& pos) const {
 			postCombatEffects(caster, pos, params);
 		}
+		void postCombatSoundEffects(const SpectatorHashSet& spectators) const {
+			postCombatSoundEffects(spectators, params);
+		}
 
 		void setOrigin(CombatOrigin origin) {
 			params.origin = origin;
@@ -299,7 +301,6 @@ class Combat
 		static void CombatFunc(Creature* caster, const Position& pos, const AreaCombat* area, const CombatParams& params, CombatFunction func, CombatDamage* data);
 
 		static void CombatHealthFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data);
-		static void CombatManaFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* damage);
 		static void CombatConditionFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data);
 		static void CombatDispelFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data);
 		static void CombatNullFunc(Creature* caster, Creature* target, const CombatParams& params, CombatDamage* data);

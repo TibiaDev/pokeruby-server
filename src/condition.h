@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,8 +34,6 @@ enum ConditionAttr_t {
 	CONDITIONATTR_TICKS,
 	CONDITIONATTR_HEALTHTICKS,
 	CONDITIONATTR_HEALTHGAIN,
-	CONDITIONATTR_MANATICKS,
-	CONDITIONATTR_MANAGAIN,
 	CONDITIONATTR_DELAYED,
 	CONDITIONATTR_OWNER,
 	CONDITIONATTR_INTERVALDATA,
@@ -47,8 +46,6 @@ enum ConditionAttr_t {
 	CONDITIONATTR_LIGHTLEVEL,
 	CONDITIONATTR_LIGHTTICKS,
 	CONDITIONATTR_LIGHTINTERVAL,
-	CONDITIONATTR_SOULTICKS,
-	CONDITIONATTR_SOULGAIN,
 	CONDITIONATTR_SKILLS,
 	CONDITIONATTR_STATS,
 	CONDITIONATTR_OUTFIT,
@@ -99,6 +96,10 @@ class Condition
 			return ticks;
 		}
 		void setTicks(int32_t newTicks);
+		CombatType_t getCombatType() const {
+			return combatType;
+		}
+		void setCombatType(CombatType_t newCombatType);
 
 		static Condition* createCondition(ConditionId_t id, ConditionType_t type, int32_t ticks, int32_t param = 0, bool buff = false, uint32_t subId = 0);
 		static Condition* createCondition(PropStream& propStream);
@@ -119,6 +120,7 @@ class Condition
 		uint32_t subId;
 		int32_t ticks;
 		ConditionType_t conditionType;
+		CombatType_t combatType = COMBAT_NONE;
 		bool isBuff;
 
 	private:
@@ -166,7 +168,6 @@ class ConditionAttributes final : public ConditionGeneric
 	private:
 		int32_t skills[SKILL_LAST + 1] = {};
 		int32_t skillsPercent[SKILL_LAST + 1] = {};
-		int32_t specialSkills[SPECIALSKILL_LAST + 1] = {};
 		int32_t stats[STAT_LAST + 1] = {};
 		int32_t statsPercent[STAT_LAST + 1] = {};
 		int32_t currentSkill = 0;
@@ -201,37 +202,9 @@ class ConditionRegeneration final : public ConditionGeneric
 
 	private:
 		uint32_t internalHealthTicks = 0;
-		uint32_t internalManaTicks = 0;
 
 		uint32_t healthTicks = 1000;
-		uint32_t manaTicks = 1000;
 		uint32_t healthGain = 0;
-		uint32_t manaGain = 0;
-};
-
-class ConditionSoul final : public ConditionGeneric
-{
-	public:
-		ConditionSoul(ConditionId_t id, ConditionType_t type, int32_t ticks, bool buff = false, uint32_t subId = 0) :
-			ConditionGeneric(id, type, ticks, buff, subId) {}
-
-		void addCondition(Creature* creature, const Condition* condition) override;
-		bool executeCondition(Creature* creature, int32_t interval) override;
-
-		bool setParam(ConditionParam_t param, int32_t value) override;
-
-		ConditionSoul* clone() const override {
-			return new ConditionSoul(*this);
-		}
-
-		//serialization
-		void serialize(PropWriteStream& propWriteStream) override;
-		bool unserializeProp(ConditionAttr_t attr, PropStream& propStream) override;
-
-	private:
-		uint32_t internalSoulTicks = 0;
-		uint32_t soulTicks = 0;
-		uint32_t soulGain = 0;
 };
 
 class ConditionInvisible final : public ConditionGeneric
@@ -390,32 +363,50 @@ class ConditionLight final : public Condition
 		uint32_t lightChangeInterval = 0;
 };
 
-class ConditionSpellCooldown final : public ConditionGeneric
+class ConditionMoveCooldown final : public ConditionGeneric
 {
 	public:
-		ConditionSpellCooldown(ConditionId_t id, ConditionType_t type, int32_t ticks, bool buff = false, uint32_t subId = 0) :
+		ConditionMoveCooldown(ConditionId_t id, ConditionType_t type, int32_t ticks, bool buff = false, uint32_t subId = 0) :
 			ConditionGeneric(id, type, ticks, buff, subId) {}
 
 		bool startCondition(Creature* creature) override;
 		void addCondition(Creature* creature, const Condition* condition) override;
 
-		ConditionSpellCooldown* clone() const override {
-			return new ConditionSpellCooldown(*this);
+		ConditionMoveCooldown* clone() const override {
+			return new ConditionMoveCooldown(*this);
 		}
 };
 
-class ConditionSpellGroupCooldown final : public ConditionGeneric
+class ConditionMoveGroupCooldown final : public ConditionGeneric
 {
 	public:
-		ConditionSpellGroupCooldown(ConditionId_t id, ConditionType_t type, int32_t ticks, bool buff = false, uint32_t subId = 0) :
+		ConditionMoveGroupCooldown(ConditionId_t id, ConditionType_t type, int32_t ticks, bool buff = false, uint32_t subId = 0) :
 			ConditionGeneric(id, type, ticks, buff, subId) {}
 
 		bool startCondition(Creature* creature) override;
 		void addCondition(Creature* creature, const Condition* condition) override;
 
-		ConditionSpellGroupCooldown* clone() const override {
-			return new ConditionSpellGroupCooldown(*this);
+		ConditionMoveGroupCooldown* clone() const override {
+			return new ConditionMoveGroupCooldown(*this);
 		}
+};
+
+class ConditionSleep final : public ConditionGeneric
+{
+	public:
+		ConditionSleep(ConditionId_t id, ConditionType_t type, int32_t ticks, bool buff = false, uint32_t subId = 0) :
+			ConditionGeneric(id, type, ticks, buff, subId) {}
+
+		bool startCondition(Creature* creature) override;
+		bool executeCondition(Creature* creature, int32_t interval) override;
+		void endCondition(Creature* creature) override;
+
+		ConditionSleep* clone() const override {
+			return new ConditionSleep(*this);
+		}
+
+	private:
+		int32_t internalSleepTicks;
 };
 
 #endif

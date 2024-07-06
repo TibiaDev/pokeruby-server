@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="1"  name="Bulbasaur" nameDescription="a Bulbasaur" blood="green" experience="100" catchRate="10">
+	<look type="1" corpse="2806" />
+	<type first="grass" second="poison" />
+	<spawn at="anytime" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2376" />
+	<icon charged="26382" discharged="26601" />
+	<genders>
+		<gender name="male" percentage="87.5" />
+		<gender name="female" percentage="12.5" />
+	</genders>
+	<basestats>
+		<hp value="45" />
+		<attack value="49" />
+		<defense value="49" />
+		<specialAttack value="65" />
+		<specialDefense value="65" />
+		<speed value="45" />
+	</basestats>
+	<evolutions>
+		<evolution to="ivysaur" at="day" stone="8924" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<moves>
+		<move name="Vine whip" chanceToLearn="100" chanceToCast="50" />
+		<move name="Spore" chanceToLearn="50" chanceToCast="100" />
+	</moves>
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+		<voice sentence="Bulba" />
+		<voice sentence="Bulbasaur" />
+		<voice sentence="Saur" />
+	</voices>
+  	<shiny chance="0">
+        	<look type="150" corpse="6047" />
+        	<portrait id="7002" />
+        	<icon charged="900" discharged="901" />
+    	</shiny>
+	<loot>
+	</loot>
+</pokemon>

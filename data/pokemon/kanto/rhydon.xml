@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="112"  name="Rhydon" nameDescription="a Rhydon" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="112" corpse="2997" />
+	<type first="ground" second="rock" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2478" />
+	<icon charged="26525" discharged="26746" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "105" />
+		<attack value="130" />
+		<defense value="120" />
+		<specialAttack value="45" />
+		<specialDefense value="45" />
+		<speed value="40" />
+	</basestats>
+	<evolutions>
+		<evolution to="rhyperior" at="anytime" stone="8927" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

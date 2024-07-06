@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +37,7 @@
 	|	|
 	|	|--- OTBM_SPAWNS (not implemented)
 	|	|	|--- OTBM_SPAWN_AREA (not implemented)
-	|	|	|--- OTBM_MONSTER (not implemented)
+	|	|	|--- OTBM_POKEMON (not implemented)
 	|	|
 	|	|--- OTBM_TOWNS
 	|	|	|--- OTBM_TOWN
@@ -108,10 +109,10 @@ bool IOMap::loadMap(Map* map, const std::string& fileName)
 		return false;
 	}
 
-	if (root_header.minorVersionItems < CLIENT_VERSION_810) {
-		setLastErrorString("This map needs to be updated.");
-		return false;
-	}
+	//if (root_header.minorVersionItems < CLIENT_VERSION_810) {
+	//	setLastErrorString("This map needs to be updated.");
+	//	return false;
+	//}
 
 	if (root_header.minorVersionItems > Item::items.minorVersion) {
 		std::cout << "[Warning - IOMap::loadMap] This map needs an updated items.otb." << std::endl;
@@ -289,6 +290,10 @@ bool IOMap::parseTileArea(OTB::Loader& loader, const OTB::Node& tileAreaNode, Ma
 					} else if ((flags & OTBM_TILEFLAG_PVPZONE) != 0) {
 						tileflags |= TILESTATE_PVPZONE;
 					}
+					
+					if ((flags & OTBM_TILEFLAG_CAVE) != 0) {
+						tileflags |= TILESTATE_CAVE;
+					}
 
 					if ((flags & OTBM_TILEFLAG_NOLOGOUT) != 0) {
 						tileflags |= TILESTATE_NOLOGOUT;
@@ -299,10 +304,8 @@ bool IOMap::parseTileArea(OTB::Loader& loader, const OTB::Node& tileAreaNode, Ma
 				case OTBM_ATTR_ITEM: {
 					Item* item = Item::CreateItem(propStream);
 					if (!item) {
-						std::ostringstream ss;
-						ss << "[x:" << x << ", y:" << y << ", z:" << z << "] Failed to create item.";
-						setLastErrorString(ss.str());
-						return false;
+						std::cout << "[Warning - IOMap::loadMap] [x: " << x << ", y: " << y << ", z: " << z << "] Failed to create item." << std::endl;
+						continue;
 					}
 
 					if (isHouseTile && item->isMoveable()) {
@@ -354,10 +357,8 @@ bool IOMap::parseTileArea(OTB::Loader& loader, const OTB::Node& tileAreaNode, Ma
 
 			Item* item = Item::CreateItem(stream);
 			if (!item) {
-				std::ostringstream ss;
-				ss << "[x:" << x << ", y:" << y << ", z:" << z << "] Failed to create item.";
-				setLastErrorString(ss.str());
-				return false;
+				std::cout << "[Warning - IOMap::loadMap] [x: " << x << ", y: " << y << ", z: " << z << "] Failed to create item." << std::endl;
+				continue;
 			}
 
 			if (!item->unserializeItemNode(loader, itemNode, stream)) {
@@ -443,7 +444,7 @@ bool IOMap::parseTowns(OTB::Loader& loader, const OTB::Node& townsNode, Map& map
 			return false;
 		}
 
-		town->setTemplePos(Position(town_coords.x, town_coords.y, town_coords.z));
+		town->setPokemonCenterPos(Position(town_coords.x, town_coords.y, town_coords.z));
 	}
 	return true;
 }

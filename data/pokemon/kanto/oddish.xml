@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="43"  name="Oddish" nameDescription="an Oddish" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="43" corpse="2973" />
+	<type first="grass" second="poison" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2418" />
+	<icon charged="26389" discharged="26608" />
+	<genders>
+		<gender name="male" percentage="87.5" />
+		<gender name="female" percentage="12.5" />
+	</genders>
+	<basestats>
+		<hp value= "45" />
+		<attack value="50" />
+		<defense value="55" />
+		<specialAttack value="75" />
+		<specialDefense value="65" />
+		<speed value="30" />
+	</basestats>
+	<evolutions>
+		<evolution to="gloom" at="anytime" stone="8927" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

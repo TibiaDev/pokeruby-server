@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +23,9 @@
 #include "npc.h"
 #include "game.h"
 #include "pugicast.h"
+#include "configmanager.h"
 
+extern ConfigManager g_config;
 extern Game g_game;
 extern LuaEnvironment g_luaEnvironment;
 
@@ -154,6 +157,28 @@ bool Npc::loadFromXml()
 		baseSpeed = 100;
 	}
 
+	if ((attr = npcNode.attribute("nameColor"))) {
+		std::string tmpStrValue = asLowerCaseString(attr.as_string());
+		uint16_t tmpInt = pugi::cast<uint16_t>(attr.value());
+		if (tmpStrValue == "red" || tmpInt == 1) {
+			nameColor = NAMECOLOR_RED;
+		} else if (tmpStrValue == "orange" || tmpInt == 2) {
+			nameColor = NAMECOLOR_ORANGE;
+		} else if (tmpStrValue == "yellow" || tmpInt == 3) {
+			nameColor = NAMECOLOR_YELLOW;
+		} else if (tmpStrValue == "blue" || tmpInt == 4) {
+			nameColor = NAMECOLOR_BLUE;
+		} else if (tmpStrValue == "purple" || tmpInt == 5) {
+			nameColor = NAMECOLOR_PURPLE;
+		} else if (tmpStrValue == "white" || tmpInt == 6) {
+			nameColor = NAMECOLOR_WHITE;
+		} else if (tmpStrValue == "black" || tmpInt == 7) {
+			nameColor = NAMECOLOR_BLACK;
+		} else {
+			std::cout << "[Warning - Npc::loadFromXml] Unknown name color " << attr.as_string() << ". " << filename << std::endl;
+		}
+	}
+
 	if ((attr = npcNode.attribute("pushable"))) {
 		pushable = attr.as_bool();
 	}
@@ -174,8 +199,8 @@ bool Npc::loadFromXml()
 		speechBubble = pugi::cast<uint32_t>(attr.value());
 	}
 
-	if ((attr = npcNode.attribute("skull"))) {
-		setSkull(getSkullType(asLowerCaseString(attr.as_string())));
+	if ((attr = npcNode.attribute("gender"))) {
+		setGender(getGenderType(asLowerCaseString(attr.as_string())));
 	}
 
 	pugi::xml_node healthNode = npcNode.child("health");
@@ -358,8 +383,8 @@ void Npc::doSayToPlayer(Player* player, const std::string& text)
 	}
 }
 
-void Npc::onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint8_t count,
-                        uint8_t amount, bool ignore/* = false*/, bool inBackpacks/* = false*/)
+void Npc::onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint16_t count,
+                        uint16_t amount, bool ignore/* = false*/, bool inBackpacks/* = false*/)
 {
 	if (npcEventHandler) {
 		npcEventHandler->onPlayerTrade(player, callback, itemId, count, amount, ignore, inBackpacks);
@@ -913,7 +938,7 @@ int NpcScriptInterface::luaDoSellItem(lua_State* L)
 	const ItemType& it = Item::items[itemId];
 	if (it.stackable) {
 		while (amount > 0) {
-			int32_t stackCount = std::min<int32_t>(100, amount);
+			int32_t stackCount = std::min<int32_t>(it.getItemMaxCount(), amount);
 			Item* item = Item::CreateItem(it.id, stackCount);
 			if (item && actionId != 0) {
 				item->setActionId(actionId);
@@ -1206,7 +1231,7 @@ void NpcEventsHandler::onCreatureSay(Creature* creature, SpeakClasses type, cons
 }
 
 void NpcEventsHandler::onPlayerTrade(Player* player, int32_t callback, uint16_t itemId,
-                              uint8_t count, uint8_t amount, bool ignore, bool inBackpacks)
+                              uint16_t count, uint16_t amount, bool ignore, bool inBackpacks)
 {
 	if (callback == -1) {
 		return;

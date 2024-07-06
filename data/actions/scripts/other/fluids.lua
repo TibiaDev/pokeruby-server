@@ -1,4 +1,4 @@
-local drunk = Condition(CONDITION_DRUNK)
+local drunk = Condition(CONDITION_CONFUSION)
 drunk:setParameter(CONDITION_PARAM_TICKS, 60000)
 
 local poison = Condition(CONDITION_POISON)
@@ -44,14 +44,11 @@ function onUse(player, item, fromPosition, target, toPosition, isHotkey)
 				player:addCondition(drunk)
 			elseif item.type == 4 then
 				player:addCondition(poison)
-			elseif item.type == 7 then
-				player:addMana(math.random(50, 150))
-				fromPosition:sendMagicEffect(CONST_ME_MAGIC_BLUE)
 			elseif item.type == 10 then
 				player:addHealth(60)
-				fromPosition:sendMagicEffect(CONST_ME_MAGIC_BLUE)
+				fromPosition:sendEffect(CONST_ME_MAGIC_BLUE)
 			end
-			player:say(fluidMessage[item.type] or "Gulp.", TALKTYPE_MONSTER_SAY)
+			player:say(fluidMessage[item.type] or "Gulp.", TALKTYPE_POKEMON_SAY)
 			item:transform(item:getId(), 0)
 		else
 			Game.createItem(2016, item.type, toPosition):decay()

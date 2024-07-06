@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,7 +81,7 @@ class NpcEventsHandler
 		void onCreatureDisappear(Creature* creature);
 		void onCreatureMove(Creature* creature, const Position& oldPos, const Position& newPos);
 		void onCreatureSay(Creature* creature, SpeakClasses, const std::string& text);
-		void onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint8_t count, uint8_t amount, bool ignore = false, bool inBackpacks = false);
+		void onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint16_t count, uint16_t amount, bool ignore = false, bool inBackpacks = false);
 		void onPlayerCloseChannel(Player* player);
 		void onPlayerEndTrade(Player* player);
 		void onThink();
@@ -137,11 +138,11 @@ class Npc final : public Creature
 		bool load();
 		void reload();
 
-		const std::string& getName() const override {
-			return name;
-		}
 		const std::string& getNameDescription() const override {
 			return name;
+		}
+		const NameColor_t getNameColor() const override {
+			return nameColor;
 		}
 
 		CreatureType_t getType() const override {
@@ -174,8 +175,8 @@ class Npc final : public Creature
 		}
 
 		void onPlayerCloseChannel(Player* player);
-		void onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint8_t count,
-		                   uint8_t amount, bool ignore = false, bool inBackpacks = false);
+		void onPlayerTrade(Player* player, int32_t callback, uint16_t itemId, uint16_t count,
+		                   uint16_t amount, bool ignore = false, bool inBackpacks = false);
 		void onPlayerEndTrade(Player* player, int32_t buyCallback, int32_t sellCallback);
 
 		void turnToCreature(Creature* creature);
@@ -226,8 +227,9 @@ class Npc final : public Creature
 		std::set<Player*> shopPlayerSet;
 		std::set<Player*> spectators;
 
-		std::string name;
 		std::string filename;
+
+		NameColor_t nameColor = NAMECOLOR_GREEN;
 
 		NpcEventsHandler* npcEventHandler;
 

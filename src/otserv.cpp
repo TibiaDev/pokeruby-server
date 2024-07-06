@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +29,6 @@
 #include "configmanager.h"
 #include "scriptmanager.h"
 #include "rsa.h"
-#include "protocolold.h"
 #include "protocollogin.h"
 #include "protocolstatus.h"
 #include "databasemanager.h"
@@ -42,8 +42,9 @@ Scheduler g_scheduler;
 
 Game g_game;
 ConfigManager g_config;
-Monsters g_monsters;
-Vocations g_vocations;
+Pokemons g_pokemons;
+Professions g_professions;
+Clans g_clans;
 RSA g_RSA;
 
 std::mutex g_loaderLock;
@@ -121,7 +122,7 @@ void mainLoader(int, char*[], ServiceManager* services)
 	std::cout << std::endl;
 
 	std::cout << "A server developed by " << STATUS_SERVER_DEVELOPERS << std::endl;
-	std::cout << "Visit our forum for updates, support, and resources: http://otland.net/." << std::endl;
+	std::cout << "Visit our website for updates, support, and resources: https://therubyproject.me" << std::endl;
 	std::cout << std::endl;
 
 	// check if config.lua or config.lua.dist exist
@@ -155,10 +156,17 @@ void mainLoader(int, char*[], ServiceManager* services)
 	}
 #endif
 
+	std::cout << ">> Loading RSA key" << std::endl;
+
 	//set RSA key
-	const char* p("14299623962416399520070177382898895550795403345466153217470516082934737582776038882967213386204600674145392845853859217990626450972452084065728686565928113");
-	const char* q("7630979195970404721891201847792002125535401292779123937207447574596692788513647179235335529307251350570728407373705564708871762033017096809910315212884101");
+	const char* p(g_config.getString(ConfigManager::PRIME1).c_str());
+	const char* q(g_config.getString(ConfigManager::PRIME2).c_str());
 	g_RSA.setKey(p, q);
+
+	if ((*p == 0) || (*q == 0)) {
+		startupErrorMessage("The RSA key is invalid.");
+		return;
+	}
 
 	std::cout << ">> Establishing database connection..." << std::flush;
 
@@ -178,16 +186,21 @@ void mainLoader(int, char*[], ServiceManager* services)
 	}
 	g_databaseTasks.start();
 
-	DatabaseManager::updateDatabase();
-
 	if (g_config.getBoolean(ConfigManager::OPTIMIZE_DATABASE) && !DatabaseManager::optimizeTables()) {
 		std::cout << "> No tables were optimized." << std::endl;
 	}
 
-	//load vocations
-	std::cout << ">> Loading vocations" << std::endl;
-	if (!g_vocations.loadFromXml()) {
-		startupErrorMessage("Unable to load vocations!");
+	//load professions
+	std::cout << ">> Loading professions" << std::endl;
+	if (!g_professions.loadFromXml()) {
+		startupErrorMessage("Unable to load professions!");
+		return;
+	}
+
+	//load clans
+	std::cout << ">> Loading clans" << std::endl;
+	if (!g_clans.loadFromXml()) {
+		startupErrorMessage("Unable to load clans!");
 		return;
 	}
 
@@ -209,9 +222,9 @@ void mainLoader(int, char*[], ServiceManager* services)
 		return;
 	}
 
-	std::cout << ">> Loading monsters" << std::endl;
-	if (!g_monsters.loadFromXml()) {
-		startupErrorMessage("Unable to load monsters!");
+	std::cout << ">> Loading pokemon" << std::endl;
+	if (!g_pokemons.loadFromXml()) {
+		startupErrorMessage("Unable to load pokemon!");
 		return;
 	}
 
@@ -239,6 +252,21 @@ void mainLoader(int, char*[], ServiceManager* services)
 	}
 	std::cout << asUpperCaseString(worldType) << std::endl;
 
+	std::cout << ">> Checking world time... ";
+	g_game.checkLight();
+
+	if (g_game.isDay()) {
+		std::cout << "DAY" << std::endl;
+	} else if (g_game.isSunset()) {
+		std::cout << "SUNSET" << std::endl;
+	} else if (g_game.isNight()) {
+		std::cout << "NIGHT" << std::endl;
+	} else if (g_game.isSunrise()) {
+		std::cout << "SUNRISE" << std::endl;
+	} else {
+		std::cout << "UNKNOWN" << std::endl;
+	}
+
 	std::cout << ">> Loading map" << std::endl;
 	if (!g_game.loadMainMap(g_config.getString(ConfigManager::MAP_NAME))) {
 		startupErrorMessage("Failed to load map");
@@ -254,9 +282,6 @@ void mainLoader(int, char*[], ServiceManager* services)
 
 	// OT protocols
 	services->add<ProtocolStatus>(g_config.getNumber(ConfigManager::STATUS_PORT));
-
-	// Legacy login protocol
-	services->add<ProtocolOld>(g_config.getNumber(ConfigManager::LOGIN_PORT));
 
 	RentPeriod_t rentPeriod;
 	std::string strRentPeriod = asLowerCaseString(g_config.getString(ConfigManager::HOUSE_RENT_PERIOD));

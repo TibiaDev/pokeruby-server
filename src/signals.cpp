@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017 Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,15 +26,16 @@
 #include "game.h"
 #include "actions.h"
 #include "configmanager.h"
-#include "spells.h"
+#include "moves.h"
 #include "talkaction.h"
 #include "movement.h"
-#include "weapons.h"
+#include "pokeballs.h"
+#include "foods.h"
 #include "raids.h"
 #include "quests.h"
 #include "mounts.h"
 #include "globalevent.h"
-#include "monster.h"
+#include "pokemon.h"
 #include "events.h"
 
 
@@ -41,11 +43,12 @@ extern Dispatcher g_dispatcher;
 
 extern ConfigManager g_config;
 extern Actions* g_actions;
-extern Monsters g_monsters;
+extern Pokemons g_pokemons;
 extern TalkActions* g_talkActions;
 extern MoveEvents* g_moveEvents;
-extern Spells* g_spells;
-extern Weapons* g_weapons;
+extern Moves* g_moves;
+extern Pokeballs* g_pokeballs;
+extern Foods* g_foods;
 extern Game g_game;
 extern CreatureEvents* g_creatureEvents;
 extern GlobalEvents* g_globalEvents;
@@ -140,11 +143,11 @@ void Signals::sighupHandler()
 	g_game.raids.startup();
 	std::cout << "Reloaded raids." << std::endl;
 
-	g_spells->reload();
-	std::cout << "Reloaded monsters." << std::endl;
+	g_moves->reload();
+	std::cout << "Reload moves." << std::endl;
 
-	g_monsters.reload();
-	std::cout << "Reloaded spells." << std::endl;
+	g_pokemons.reload();
+	std::cout << "Reloaded pokemons." << std::endl;
 
 	g_talkActions->reload();
 	std::cout << "Reloaded talk actions." << std::endl;
@@ -152,9 +155,11 @@ void Signals::sighupHandler()
 	Item::items.reload();
 	std::cout << "Reloaded items." << std::endl;
 
-	g_weapons->reload();
-	g_weapons->loadDefaults();
-	std::cout << "Reloaded weapons." << std::endl;
+	g_pokeballs->reload();
+	std::cout << "Reloaded pokeballs." << std::endl;
+
+	g_foods->reload();
+	std::cout << "Reloaded foods." << std::endl;
 
 	g_game.quests.reload();
 	std::cout << "Reloaded quests." << std::endl;

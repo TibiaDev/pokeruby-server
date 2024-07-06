@@ -16,21 +16,20 @@ function onLogin(player)
 	nextUseStaminaTime[player.uid] = 0
 
 	-- Promotion
-	local vocation = player:getVocation()
-	local promotion = vocation:getPromotion()
+	local profession = player:getProfession()
+	local promotion = profession:getPromotion()
 	if player:isPremium() then
 		local value = player:getStorageValue(STORAGEVALUE_PROMOTION)
 		if not promotion and value ~= 1 then
 			player:setStorageValue(STORAGEVALUE_PROMOTION, 1)
 		elseif value == 1 then
-			player:setVocation(promotion)
+			player:setProfession(promotion)
 		end
 	elseif not promotion then
-		player:setVocation(vocation:getDemotion())
+		player:setProfession(profession:getDemotion())
 	end
 
 	-- Events
 	player:registerEvent("PlayerDeath")
-	player:registerEvent("DropLoot")
 	return true
 end

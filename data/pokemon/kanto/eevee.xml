@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="133"  name="Eevee" nameDescription="an Eevee" blood="green" experience="23" speed="150" catchRate="0">
+	<look type="133" corpse="2951" />
+	<type first="normal" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2499" />
+	<icon charged="26506" discharged="26726" />
+	<genders>
+		<gender name="male" percentage="87.5" />
+		<gender name="female" percentage="12.5" />
+	</genders>
+	<basestats>
+		<hp value= "55" />
+		<attack value="55" />
+		<defense value="50" />
+		<specialAttack value="45" />
+		<specialDefense value="65" />
+		<speed value="55" />
+	</basestats>
+	<evolutions>
+		<evolution to="vaporeon" at="anytime" stone="8929" />
+		<evolution to="jolteon" at="anytime" stone="8923" />
+		<evolution to="flareon" at="anytime" stone="8926" />
+	</evolutions>	
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="118"  name="Goldeen" nameDescription="a Goldeen" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="118" corpse="2936" />
+	<type first="water" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2484" />
+	<icon charged="26552" discharged="26773" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "45" />
+		<attack value="67" />
+		<defense value="60" />
+		<specialAttack value="35" />
+		<specialDefense value="50" />
+		<speed value="63" />
+	</basestats>
+	<evolutions>
+		<evolution to="seaking" at="anytime" stone="8929" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

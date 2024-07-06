@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +49,11 @@ LuaScriptInterface& CreatureEvents::getScriptInterface()
 std::string CreatureEvents::getScriptBaseName() const
 {
 	return "creaturescripts";
+}
+
+std::string CreatureEvents::getScriptPrefixName() const
+{
+	return "";
 }
 
 Event_ptr CreatureEvents::getEvent(const std::string& nodeName)
@@ -145,7 +151,7 @@ CreatureEvent::CreatureEvent(LuaScriptInterface* interface) :
 
 bool CreatureEvent::configureEvent(const pugi::xml_node& node)
 {
-	// Name that will be used in monster xml files and
+	// Name that will be used in pokemon xml files and
 	// lua function to register events to reference this event
 	pugi::xml_attribute nameAttribute = node.attribute("name");
 	if (!nameAttribute) {
@@ -182,8 +188,6 @@ bool CreatureEvent::configureEvent(const pugi::xml_node& node)
 		type = CREATURE_EVENT_TEXTEDIT;
 	} else if (tmpStr == "healthchange") {
 		type = CREATURE_EVENT_HEALTHCHANGE;
-	} else if (tmpStr == "manachange") {
-		type = CREATURE_EVENT_MANACHANGE;
 	} else if (tmpStr == "extendedopcode") {
 		type = CREATURE_EVENT_EXTENDED_OPCODE;
 	} else {
@@ -228,9 +232,6 @@ std::string CreatureEvent::getScriptEventName() const
 
 		case CREATURE_EVENT_HEALTHCHANGE:
 			return "onHealthChange";
-
-		case CREATURE_EVENT_MANACHANGE:
-			return "onManaChange";
 
 		case CREATURE_EVENT_EXTENDED_OPCODE:
 			return "onExtendedOpcode";
@@ -500,52 +501,16 @@ void CreatureEvent::executeHealthChange(Creature* creature, Creature* attacker, 
 
 	LuaScriptInterface::pushCombatDamage(L, damage);
 
-	if (scriptInterface->protectedCall(L, 7, 4) != 0) {
+	if (scriptInterface->protectedCall(L, 7, 2) != 0) {
 		LuaScriptInterface::reportError(nullptr, LuaScriptInterface::popString(L));
 	} else {
-		damage.primary.value = std::abs(LuaScriptInterface::getNumber<int32_t>(L, -4));
-		damage.primary.type = LuaScriptInterface::getNumber<CombatType_t>(L, -3);
-		damage.secondary.value = std::abs(LuaScriptInterface::getNumber<int32_t>(L, -2));
-		damage.secondary.type = LuaScriptInterface::getNumber<CombatType_t>(L, -1);
+		damage.value = std::abs(LuaScriptInterface::getNumber<int32_t>(L, -2));
+		damage.type = LuaScriptInterface::getNumber<CombatType_t>(L, -1);
 
-		lua_pop(L, 4);
-		if (damage.primary.type != COMBAT_HEALING) {
-			damage.primary.value = -damage.primary.value;
-			damage.secondary.value = -damage.secondary.value;
+		lua_pop(L, 2);
+		if (damage.type != COMBAT_HEALING) {
+			damage.value = -damage.value;
 		}
-	}
-
-	scriptInterface->resetScriptEnv();
-}
-
-void CreatureEvent::executeManaChange(Creature* creature, Creature* attacker, CombatDamage& damage) {
-	//onManaChange(creature, attacker, primaryDamage, primaryType, secondaryDamage, secondaryType, origin)
-	if (!scriptInterface->reserveScriptEnv()) {
-		std::cout << "[Error - CreatureEvent::executeManaChange] Call stack overflow" << std::endl;
-		return;
-	}
-
-	ScriptEnvironment* env = scriptInterface->getScriptEnv();
-	env->setScriptId(scriptId, scriptInterface);
-
-	lua_State* L = scriptInterface->getLuaState();
-	scriptInterface->pushFunction(scriptId);
-
-	LuaScriptInterface::pushUserdata(L, creature);
-	LuaScriptInterface::setCreatureMetatable(L, -1, creature);
-	if (attacker) {
-		LuaScriptInterface::pushUserdata(L, attacker);
-		LuaScriptInterface::setCreatureMetatable(L, -1, attacker);
-	} else {
-		lua_pushnil(L);
-	}
-
-	LuaScriptInterface::pushCombatDamage(L, damage);
-
-	if (scriptInterface->protectedCall(L, 7, 4) != 0) {
-		LuaScriptInterface::reportError(nullptr, LuaScriptInterface::popString(L));
-	} else {
-		damage = LuaScriptInterface::getCombatDamage(L);
 	}
 
 	scriptInterface->resetScriptEnv();

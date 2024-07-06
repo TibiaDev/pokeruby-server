@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="25"  name="Pikachu" nameColor="yellow" nameDescription="a Pikachu" blood="green" experience="23" speed="150" catchRate="100">
+	<look type="25" corpse="2972" />
+	<type first="electric" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2400" />
+	<icon charged="26446" discharged="26665" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "35" />
+		<attack value="55" />
+		<defense value="30" />
+		<specialAttack value="50" />
+		<specialDefense value="40" />
+		<speed value="90" />
+	</basestats>
+	<evolutions>
+		<evolution to="raichu" at="anytime" stone="8923" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />		
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="-200" max="-200" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

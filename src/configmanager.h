@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +28,6 @@ class ConfigManager
 			ALLOW_CHANGEOUTFIT,
 			ONE_PLAYER_ON_ACCOUNT,
 			AIMBOT_HOTKEY_ENABLED,
-			REMOVE_RUNE_CHARGES,
 			EXPERIENCE_FROM_PLAYERS,
 			FREE_PREMIUM,
 			REPLACE_KICK_ON_LOGIN,
@@ -35,12 +35,10 @@ class ConfigManager
 			BIND_ONLY_GLOBAL_ADDRESS,
 			OPTIMIZE_DATABASE,
 			MARKET_PREMIUM,
-			EMOTE_SPELLS,
+			EMOTE_MOVES,
 			STAMINA_SYSTEM,
 			WARN_UNSAFE_SCRIPTS,
 			CONVERT_UNSAFE_SCRIPTS,
-			CLASSIC_EQUIPMENT_SLOTS,
-			CLASSIC_ATTACK_SPEED,
 
 			LAST_BOOLEAN_CONFIG /* this must be the last one */
 		};
@@ -63,6 +61,8 @@ class ConfigManager
 			MYSQL_SOCK,
 			DEFAULT_PRIORITY,
 			MAP_AUTHOR,
+			PRIME1,
+			PRIME2,
 
 			LAST_STRING_CONFIG /* this must be the last one */
 		};
@@ -76,20 +76,25 @@ class ConfigManager
 			RATE_EXPERIENCE,
 			RATE_SKILL,
 			RATE_LOOT,
-			RATE_MAGIC,
 			RATE_SPAWN,
+			RATE_CATCH,
 			HOUSE_PRICE,
 			KILLS_TO_RED,
 			KILLS_TO_BLACK,
 			MAX_MESSAGEBUFFER,
+			MAX_STACKED_ITEMS,
+			MAX_TRADE_ITEMS,
+			MAX_BUYORSELL_ITEMS,
 			ACTIONS_DELAY_INTERVAL,
 			EX_ACTIONS_DELAY_INTERVAL,
+			POKEBALLS_DELAY_INTERVAL,
+			FOODS_DELAY_INTERVAL,
+			GOBACK_DELAY_INTERVAL,
 			KICK_AFTER_MINUTES,
 			PROTECTION_LEVEL,
 			DEATH_LOSE_PERCENT,
 			STATUSQUERY_TIMEOUT,
 			FRAG_TIME,
-			WHITE_SKULL_TIME,
 			GAME_PORT,
 			LOGIN_PORT,
 			STATUS_PORT,
@@ -99,6 +104,8 @@ class ConfigManager
 			MAX_MARKET_OFFERS_AT_A_TIME_PER_PLAYER,
 			EXP_FROM_PLAYERS_LEVEL_RANGE,
 			MAX_PACKETS_PER_SECOND,
+			TELEPORT_TO_PLAYER_FLOOR,
+			TELEPORT_TO_PLAYER_TILES,
 
 			LAST_INTEGER_CONFIG /* this must be the last one */
 		};

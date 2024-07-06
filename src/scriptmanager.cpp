@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +25,10 @@
 #include "actions.h"
 #include "chat.h"
 #include "talkaction.h"
-#include "spells.h"
+#include "moves.h"
 #include "movement.h"
-#include "weapons.h"
+#include "pokeballs.h"
+#include "foods.h"
 #include "globalevent.h"
 #include "events.h"
 
@@ -35,24 +37,25 @@ CreatureEvents* g_creatureEvents = nullptr;
 Chat* g_chat = nullptr;
 Events* g_events = nullptr;
 GlobalEvents* g_globalEvents = nullptr;
-Spells* g_spells = nullptr;
+Moves* g_moves = nullptr;
 TalkActions* g_talkActions = nullptr;
 MoveEvents* g_moveEvents = nullptr;
-Weapons* g_weapons = nullptr;
+Pokeballs* g_pokeballs = nullptr;
+Foods* g_foods = nullptr;
 
 extern LuaEnvironment g_luaEnvironment;
 
 ScriptingManager::~ScriptingManager()
 {
 	delete g_events;
-	delete g_weapons;
-	delete g_spells;
+	delete g_moves;
 	delete g_actions;
 	delete g_talkActions;
 	delete g_moveEvents;
 	delete g_chat;
 	delete g_creatureEvents;
 	delete g_globalEvents;
+	delete g_pokeballs;
 }
 
 bool ScriptingManager::loadScriptSystems()
@@ -63,17 +66,21 @@ bool ScriptingManager::loadScriptSystems()
 
 	g_chat = new Chat();
 
-	g_weapons = new Weapons();
-	if (!g_weapons->loadFromXml()) {
-		std::cout << "> ERROR: Unable to load weapons!" << std::endl;
+	g_pokeballs = new Pokeballs();
+	if (!g_pokeballs->loadFromXml()) {
+		std::cout << "> ERROR: Unable to load pokeballs!" << std::endl;
 		return false;
 	}
 
-	g_weapons->loadDefaults();
+	g_foods = new Foods();
+	if (!g_foods->loadFromXml()) {
+		std::cout << "> ERROR: Unable to load foods!" << std::endl;
+		return false;
+	}
 
-	g_spells = new Spells();
-	if (!g_spells->loadFromXml()) {
-		std::cout << "> ERROR: Unable to load spells!" << std::endl;
+	g_moves = new Moves();
+	if (!g_moves->loadFromXml()) {
+		std::cout << "> ERROR: Unable to load moves!" << std::endl;
 		return false;
 	}
 

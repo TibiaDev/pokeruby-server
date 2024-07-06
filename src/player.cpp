@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017 Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,19 +30,23 @@
 #include "events.h"
 #include "game.h"
 #include "iologindata.h"
-#include "monster.h"
+#include "pokemon.h"
 #include "movement.h"
 #include "scheduler.h"
-#include "weapons.h"
+#include "pokeballs.h"
+#include "foods.h"
 
 extern ConfigManager g_config;
 extern Game g_game;
 extern Chat* g_chat;
-extern Vocations g_vocations;
+extern Professions g_professions;
+extern Clans g_clans;
 extern MoveEvents* g_moveEvents;
-extern Weapons* g_weapons;
+extern Pokeballs* g_pokeballs;
+extern Foods* g_foods;
 extern CreatureEvents* g_creatureEvents;
 extern Events* g_events;
+extern Pokemons g_pokemons;
 
 MuteCountMap Player::muteCountMap;
 
@@ -73,21 +78,29 @@ Player::~Player()
 	setEditHouse(nullptr);
 }
 
-bool Player::setVocation(uint16_t vocId)
+bool Player::setProfession(uint16_t profId)
 {
-	Vocation* voc = g_vocations.getVocation(vocId);
-	if (!voc) {
+	Profession* prof = g_professions.getProfession(profId);
+	if (!prof) {
 		return false;
 	}
-	vocation = voc;
+	profession = prof;
 
 	Condition* condition = getCondition(CONDITION_REGENERATION, CONDITIONID_DEFAULT);
 	if (condition) {
-		condition->setParam(CONDITION_PARAM_HEALTHGAIN, vocation->getHealthGainAmount());
-		condition->setParam(CONDITION_PARAM_HEALTHTICKS, vocation->getHealthGainTicks() * 1000);
-		condition->setParam(CONDITION_PARAM_MANAGAIN, vocation->getManaGainAmount());
-		condition->setParam(CONDITION_PARAM_MANATICKS, vocation->getManaGainTicks() * 1000);
+		condition->setParam(CONDITION_PARAM_HEALTHGAIN, profession->getHealthGainAmount());
+		condition->setParam(CONDITION_PARAM_HEALTHTICKS, profession->getHealthGainTicks() * 1000);
 	}
+	return true;
+}
+
+bool Player::setClan(uint16_t clanId)
+{
+	Clan* newClan = g_clans.getClan(clanId);
+	if (!newClan) {
+		return false;
+	}
+	clan = newClan;
 	return true;
 }
 
@@ -107,12 +120,20 @@ std::string Player::getDescription(int32_t lookDistance) const
 		s << "yourself.";
 
 		if (group->access) {
-			s << " You are " << group->name << '.';
-		} else if (vocation->getId() != VOCATION_NONE) {
-			s << " You are " << vocation->getVocDescription() << '.';
+			s << " You are " << group->name;
+		} else if (profession->getId() != PROFESSION_NONE) {
+			s << " You are " << profession->getProfDescription();
 		} else {
-			s << " You have no vocation.";
+			s << " You are a Pokemon Trainer";
 		}
+
+		if (clan->getId() != CLAN_NONE) {
+			s << " and belongs to " << clan->getClanDescription() << " clan";
+		} else {
+			s << " and has no clan";
+		}
+
+		s << '.';
 	} else {
 		s << name;
 		if (!group->access) {
@@ -127,12 +148,20 @@ std::string Player::getDescription(int32_t lookDistance) const
 		}
 
 		if (group->access) {
-			s << " is " << group->name << '.';
-		} else if (vocation->getId() != VOCATION_NONE) {
-			s << " is " << vocation->getVocDescription() << '.';
+			s << " is " << group->name;
+		} else if (profession->getId() != PROFESSION_NONE) {
+			s << " is " << profession->getProfDescription();
 		} else {
-			s << " has no vocation.";
+			s << " is a Pokemon Trainer";
 		}
+
+		if (clan->getId() != CLAN_NONE) {
+			s << " and belongs to " << clan->getClanDescription() << " clan";
+		} else {
+			s << " and has no clan";
+		}
+
+		s << ".";
 	}
 
 	if (party) {
@@ -203,166 +232,14 @@ void Player::removeConditionSuppressions(uint32_t conditions)
 	conditionSuppressions &= ~conditions;
 }
 
-Item* Player::getWeapon(slots_t slot, bool ignoreAmmo) const
+float Player::getDefense() const
 {
-	Item* item = inventory[slot];
-	if (!item) {
-		return nullptr;
-	}
-
-	WeaponType_t weaponType = item->getWeaponType();
-	if (weaponType == WEAPON_NONE || weaponType == WEAPON_SHIELD || weaponType == WEAPON_AMMO) {
-		return nullptr;
-	}
-
-	if (!ignoreAmmo && weaponType == WEAPON_DISTANCE) {
-		const ItemType& it = Item::items[item->getID()];
-		if (it.ammoType != AMMO_NONE) {
-			Item* ammoItem = inventory[CONST_SLOT_AMMO];
-			if (!ammoItem || ammoItem->getAmmoType() != it.ammoType) {
-				return nullptr;
-			}
-			item = ammoItem;
-		}
-	}
-	return item;
+	return 1.0f;
 }
 
-Item* Player::getWeapon(bool ignoreAmmo/* = false*/) const
+float Player::getSpecialDefense() const
 {
-	Item* item = getWeapon(CONST_SLOT_LEFT, ignoreAmmo);
-	if (item) {
-		return item;
-	}
-
-	item = getWeapon(CONST_SLOT_RIGHT, ignoreAmmo);
-	if (item) {
-		return item;
-	}
-	return nullptr;
-}
-
-WeaponType_t Player::getWeaponType() const
-{
-	Item* item = getWeapon();
-	if (!item) {
-		return WEAPON_NONE;
-	}
-	return item->getWeaponType();
-}
-
-int32_t Player::getWeaponSkill(const Item* item) const
-{
-	if (!item) {
-		return getSkillLevel(SKILL_FIST);
-	}
-
-	int32_t attackSkill;
-
-	WeaponType_t weaponType = item->getWeaponType();
-	switch (weaponType) {
-		case WEAPON_SWORD: {
-			attackSkill = getSkillLevel(SKILL_SWORD);
-			break;
-		}
-
-		case WEAPON_CLUB: {
-			attackSkill = getSkillLevel(SKILL_CLUB);
-			break;
-		}
-
-		case WEAPON_AXE: {
-			attackSkill = getSkillLevel(SKILL_AXE);
-			break;
-		}
-
-		case WEAPON_DISTANCE: {
-			attackSkill = getSkillLevel(SKILL_DISTANCE);
-			break;
-		}
-
-		default: {
-			attackSkill = 0;
-			break;
-		}
-	}
-	return attackSkill;
-}
-
-int32_t Player::getArmor() const
-{
-	int32_t armor = 0;
-
-	static const slots_t armorSlots[] = {CONST_SLOT_HEAD, CONST_SLOT_NECKLACE, CONST_SLOT_ARMOR, CONST_SLOT_LEGS, CONST_SLOT_FEET, CONST_SLOT_RING};
-	for (slots_t slot : armorSlots) {
-		Item* inventoryItem = inventory[slot];
-		if (inventoryItem) {
-			armor += inventoryItem->getArmor();
-		}
-	}
-	return static_cast<int32_t>(armor * vocation->armorMultiplier);
-}
-
-void Player::getShieldAndWeapon(const Item*& shield, const Item*& weapon) const
-{
-	shield = nullptr;
-	weapon = nullptr;
-
-	for (uint32_t slot = CONST_SLOT_RIGHT; slot <= CONST_SLOT_LEFT; slot++) {
-		Item* item = inventory[slot];
-		if (!item) {
-			continue;
-		}
-
-		switch (item->getWeaponType()) {
-			case WEAPON_NONE:
-				break;
-
-			case WEAPON_SHIELD: {
-				if (!shield || item->getDefense() > shield->getDefense()) {
-					shield = item;
-				}
-				break;
-			}
-
-			default: { // weapons that are not shields
-				weapon = item;
-				break;
-			}
-		}
-	}
-}
-
-int32_t Player::getDefense() const
-{
-	int32_t defenseSkill = getSkillLevel(SKILL_FIST);
-	int32_t defenseValue = 7;
-	const Item* weapon;
-	const Item* shield;
-	getShieldAndWeapon(shield, weapon);
-
-	if (weapon) {
-		defenseValue = weapon->getDefense() + weapon->getExtraDefense();
-		defenseSkill = getWeaponSkill(weapon);
-	}
-
-	if (shield) {
-		defenseValue = weapon != nullptr ? shield->getDefense() + weapon->getExtraDefense() : shield->getDefense();
-		defenseSkill = getSkillLevel(SKILL_SHIELD);
-	}
-
-	if (defenseSkill == 0) {
-		switch (fightMode) {
-			case FIGHTMODE_ATTACK:
-			case FIGHTMODE_BALANCED:
-				return 1;
-
-			case FIGHTMODE_DEFENSE:
-				return 2;
-		}
-	}
-
-	return (defenseSkill / 4. + 2.23) * defenseValue * 0.15 * getDefenseFactor() * vocation->defenseMultiplier;
+	return 1.0f;
 }
 
 float Player::getAttackFactor() const
@@ -378,9 +255,9 @@ float Player::getAttackFactor() const
 float Player::getDefenseFactor() const
 {
 	switch (fightMode) {
-		case FIGHTMODE_ATTACK: return (OTSYS_TIME() - lastAttack) < getAttackSpeed() ? 0.5f : 1.0f;
-		case FIGHTMODE_BALANCED: return (OTSYS_TIME() - lastAttack) < getAttackSpeed() ? 0.75f : 1.0f;
-		case FIGHTMODE_DEFENSE: return 1.0f;
+		case FIGHTMODE_ATTACK: return 1.0f;
+		case FIGHTMODE_BALANCED: return 1.2f;
+		case FIGHTMODE_DEFENSE: return 2.0f;
 		default: return 1.0f;
 	}
 }
@@ -434,10 +311,25 @@ void Player::updateInventoryWeight()
 	}
 }
 
+void Player::updateInventoryPokemonCount()
+{
+	if (hasFlag(PlayerFlag_HasInfinitePokemonCapacity)) {
+		return;
+	}
+
+	inventoryPokemonCount = 0;
+	for (int i = CONST_SLOT_FIRST; i <= CONST_SLOT_LAST; ++i) {
+		const Item* item = inventory[i];
+		if (item) {
+			inventoryPokemonCount += item->getPokemonCount();
+		}
+	}
+}
+
 void Player::addSkillAdvance(skills_t skill, uint64_t count)
 {
-	uint64_t currReqTries = vocation->getReqSkillTries(skill, skills[skill].level);
-	uint64_t nextReqTries = vocation->getReqSkillTries(skill, skills[skill].level + 1);
+	uint64_t currReqTries = profession->getReqSkillTries(skill, skills[skill].level);
+	uint64_t nextReqTries = profession->getReqSkillTries(skill, skills[skill].level + 1);
 	if (currReqTries >= nextReqTries) {
 		//player has reached max skill
 		return;
@@ -463,7 +355,7 @@ void Player::addSkillAdvance(skills_t skill, uint64_t count)
 
 		sendUpdateSkills = true;
 		currReqTries = nextReqTries;
-		nextReqTries = vocation->getReqSkillTries(skill, skills[skill].level + 1);
+		nextReqTries = profession->getReqSkillTries(skill, skills[skill].level + 1);
 		if (currReqTries >= nextReqTries) {
 			count = 0;
 			break;
@@ -503,13 +395,6 @@ void Player::setVarStats(stats_t stat, int32_t modifier)
 			break;
 		}
 
-		case STAT_MAXMANAPOINTS: {
-			if (getMana() > getMaxMana()) {
-				changeMana(getMaxMana() - getMana());
-			}
-			break;
-		}
-
 		default: {
 			break;
 		}
@@ -520,8 +405,6 @@ int32_t Player::getDefaultStats(stats_t stat) const
 {
 	switch (stat) {
 		case STAT_MAXHITPOINTS: return healthMax;
-		case STAT_MAXMANAPOINTS: return manaMax;
-		case STAT_MAGICPOINTS: return getBaseMagicLevel();
 		default: return 0;
 	}
 }
@@ -630,6 +513,8 @@ void Player::addStorageValue(const uint32_t key, const int32_t value, const bool
 				value & 0xFF
 			);
 			return;
+		} else if (IS_IN_KEYRANGE(key, POKEDEX_RANGE)) {
+			addPokedexEntry(value);
 		} else if (IS_IN_KEYRANGE(key, MOUNTS_RANGE)) {
 			// do nothing
 		} else {
@@ -812,7 +697,6 @@ void Player::sendStats()
 {
 	if (client) {
 		client->sendStats();
-		lastStatsTrainingTime = getOfflineTrainingTime() / 60 / 1000;
 	}
 }
 
@@ -1161,7 +1045,7 @@ void Player::onRemoveCreature(Creature* creature, bool isLogout)
 		}
 
 		IOLoginData::updateOnlineStatus(guid, false);
-
+		
 		bool saved = false;
 		for (uint32_t tries = 0; tries < 3; ++tries) {
 			if (IOLoginData::savePlayer(this)) {
@@ -1227,6 +1111,18 @@ void Player::onCreatureMove(Creature* creature, const Tile* newTile, const Posit
 		return;
 	}
 
+	if (getListeningMusic() != newTile->getMusic()) {
+		setListeningMusic(newTile->getMusic());
+		sendSound(getPosition(), newTile->getMusic(), SOUND_CHANNEL_MUSIC);
+		setListeningMusic(newTile->getMusic());
+	}
+
+	if (getHisPokemon()) {
+		if (!getHisPokemon()->holdingPosition()) {
+			getHisPokemon()->setFollowCreature(this);
+		}
+	}
+
 	if (tradeState != TRADE_TRANSFER) {
 		//check if we should close trade
 		if (tradeItem && !Position::areInRange<1, 1, 0>(tradeItem->getPosition(), getPosition())) {
@@ -1240,13 +1136,6 @@ void Player::onCreatureMove(Creature* creature, const Tile* newTile, const Posit
 
 	// close modal windows
 	if (!modalWindows.empty()) {
-		// TODO: This shouldn't be hardcoded
-		for (uint32_t modalWindowId : modalWindows) {
-			if (modalWindowId == std::numeric_limits<uint32_t>::max()) {
-				sendTextMessage(MESSAGE_EVENT_ADVANCE, "Offline training aborted.");
-				break;
-			}
-		}
 		modalWindows.clear();
 	}
 
@@ -1416,6 +1305,16 @@ uint32_t Player::getNextActionTime() const
 	return std::max<int64_t>(SCHEDULER_MINTICKS, nextAction - OTSYS_TIME());
 }
 
+uint32_t Player::getNextCastMoveTime() const
+{
+	return std::max<int64_t>(SCHEDULER_MINTICKS, nextMove - OTSYS_TIME());
+}
+
+uint32_t Player::getNextGobackTime() const
+{
+	return std::max<int64_t>(SCHEDULER_MINTICKS, nextGoback - OTSYS_TIME());
+}
+
 void Player::onThink(uint32_t interval)
 {
 	Creature::onThink(interval);
@@ -1438,15 +1337,6 @@ void Player::onThink(uint32_t interval)
 			ss << "You have been idle for " << kickAfterMinutes << " minutes. You will be disconnected in one minute if you are still idle then.";
 			client->sendTextMessage(TextMessage(MESSAGE_STATUS_WARNING, ss.str()));
 		}
-	}
-
-	if (g_game.getWorldType() != WORLD_TYPE_PVP_ENFORCED) {
-		checkSkullTicks(interval);
-	}
-
-	addOfflineTrainingTime(interval);
-	if (lastStatsTrainingTime != getOfflineTrainingTime() / 60 / 1000) {
-		sendStats();
 	}
 }
 
@@ -1505,75 +1395,6 @@ void Player::drainHealth(Creature* attacker, int32_t damage)
 	sendStats();
 }
 
-void Player::drainMana(Creature* attacker, int32_t manaLoss)
-{
-	onAttacked();
-	changeMana(-manaLoss);
-
-	if (attacker) {
-		addDamagePoints(attacker, manaLoss);
-	}
-
-	sendStats();
-}
-
-void Player::addManaSpent(uint64_t amount)
-{
-	if (hasFlag(PlayerFlag_NotGainMana)) {
-		return;
-	}
-
-	uint64_t currReqMana = vocation->getReqMana(magLevel);
-	uint64_t nextReqMana = vocation->getReqMana(magLevel + 1);
-	if (currReqMana >= nextReqMana) {
-		//player has reached max magic level
-		return;
-	}
-
-	g_events->eventPlayerOnGainSkillTries(this, SKILL_MAGLEVEL, amount);
-	if (amount == 0) {
-		return;
-	}
-
-	bool sendUpdateStats = false;
-	while ((manaSpent + amount) >= nextReqMana) {
-		amount -= nextReqMana - manaSpent;
-
-		magLevel++;
-		manaSpent = 0;
-
-		std::ostringstream ss;
-		ss << "You advanced to magic level " << magLevel << '.';
-		sendTextMessage(MESSAGE_EVENT_ADVANCE, ss.str());
-
-		g_creatureEvents->playerAdvance(this, SKILL_MAGLEVEL, magLevel - 1, magLevel);
-
-		sendUpdateStats = true;
-		currReqMana = nextReqMana;
-		nextReqMana = vocation->getReqMana(magLevel + 1);
-		if (currReqMana >= nextReqMana) {
-			return;
-		}
-	}
-
-	manaSpent += amount;
-
-	uint8_t oldPercent = magLevelPercent;
-	if (nextReqMana > currReqMana) {
-		magLevelPercent = Player::getPercentLevel(manaSpent, nextReqMana);
-	} else {
-		magLevelPercent = 0;
-	}
-
-	if (oldPercent != magLevelPercent) {
-		sendUpdateStats = true;
-	}
-
-	if (sendUpdateStats) {
-		sendStats();
-	}
-}
-
 void Player::addExperience(Creature* source, uint64_t exp, bool sendText/* = false*/)
 {
 	uint64_t currLevelExp = Player::getExpForLevel(level);
@@ -1617,11 +1438,9 @@ void Player::addExperience(Creature* source, uint64_t exp, bool sendText/* = fal
 	uint32_t prevLevel = level;
 	while (experience >= nextLevelExp) {
 		++level;
-		healthMax += vocation->getHPGain();
-		health += vocation->getHPGain();
-		manaMax += vocation->getManaGain();
-		mana += vocation->getManaGain();
-		capacity += vocation->getCapGain();
+		healthMax += profession->getHPGain();
+		health += profession->getHPGain();
+		capacity += profession->getCapGain();
 
 		currLevelExp = nextLevelExp;
 		nextLevelExp = Player::getExpForLevel(level + 1);
@@ -1633,7 +1452,6 @@ void Player::addExperience(Creature* source, uint64_t exp, bool sendText/* = fal
 
 	if (prevLevel != level) {
 		health = healthMax;
-		mana = manaMax;
 
 		updateBaseSpeed();
 		setBaseSpeed(getBaseSpeed());
@@ -1643,6 +1461,14 @@ void Player::addExperience(Creature* source, uint64_t exp, bool sendText/* = fal
 
 		if (party) {
 			party->updateSharedExperience();
+		}
+
+		if (Pokemon* pokemon = getHisPokemon()) {
+			pokemon->setLevel(getLevel());
+			setPokemonHealthMax(pokemon->getMaxHealth());
+			setPokemonHealth(pokemon->getMaxHealth());
+			pokemon->changeHealth(pokemon->getMaxHealth());
+			sendStats();
 		}
 
 		g_creatureEvents->playerAdvance(this, SKILL_LEVEL, prevLevel, level);
@@ -1702,15 +1528,13 @@ void Player::removeExperience(uint64_t exp, bool sendText/* = false*/)
 
 	while (level > 1 && experience < currLevelExp) {
 		--level;
-		healthMax = std::max<int32_t>(0, healthMax - vocation->getHPGain());
-		manaMax = std::max<int32_t>(0, manaMax - vocation->getManaGain());
-		capacity = std::max<int32_t>(0, capacity - vocation->getCapGain());
+		healthMax = std::max<int32_t>(0, healthMax - profession->getHPGain());
+		capacity = std::max<int32_t>(0, capacity - profession->getCapGain());
 		currLevelExp = Player::getExpForLevel(level);
 	}
 
 	if (oldLevel != level) {
 		health = healthMax;
-		mana = manaMax;
 
 		updateBaseSpeed();
 		setBaseSpeed(getBaseSpeed());
@@ -1720,6 +1544,14 @@ void Player::removeExperience(uint64_t exp, bool sendText/* = false*/)
 
 		if (party) {
 			party->updateSharedExperience();
+		}
+
+		if (Pokemon* pokemon = getHisPokemon()) {
+			pokemon->setLevel(getLevel());
+			setPokemonHealthMax(pokemon->getMaxHealth());
+			setPokemonHealth(pokemon->getMaxHealth());
+			pokemon->changeHealth(pokemon->getMaxHealth());
+			sendStats();
 		}
 
 		std::ostringstream ss;
@@ -1749,66 +1581,10 @@ uint8_t Player::getPercentLevel(uint64_t count, uint64_t nextLevelCount)
 	return result;
 }
 
-void Player::onBlockHit()
-{
-	if (shieldBlockCount > 0) {
-		--shieldBlockCount;
-
-		if (hasShield()) {
-			addSkillAdvance(SKILL_SHIELD, 1);
-		}
-	}
-}
-
-void Player::onAttackedCreatureBlockHit(BlockType_t blockType)
-{
-	lastAttackBlockType = blockType;
-
-	switch (blockType) {
-		case BLOCK_NONE: {
-			addAttackSkillPoint = true;
-			bloodHitCount = 30;
-			shieldBlockCount = 30;
-			break;
-		}
-
-		case BLOCK_DEFENSE:
-		case BLOCK_ARMOR: {
-			//need to draw blood every 30 hits
-			if (bloodHitCount > 0) {
-				addAttackSkillPoint = true;
-				--bloodHitCount;
-			} else {
-				addAttackSkillPoint = false;
-			}
-			break;
-		}
-
-		default: {
-			addAttackSkillPoint = false;
-			break;
-		}
-	}
-}
-
-bool Player::hasShield() const
-{
-	Item* item = inventory[CONST_SLOT_LEFT];
-	if (item && item->getWeaponType() == WEAPON_SHIELD) {
-		return true;
-	}
-
-	item = inventory[CONST_SLOT_RIGHT];
-	if (item && item->getWeaponType() == WEAPON_SHIELD) {
-		return true;
-	}
-	return false;
-}
-
 BlockType_t Player::blockHit(Creature* attacker, CombatType_t combatType, int32_t& damage,
-                             bool checkDefense /* = false*/, bool checkArmor /* = false*/, bool field /* = false*/)
+                             bool field /* = false*/)
 {
-	BlockType_t blockType = Creature::blockHit(attacker, combatType, damage, checkDefense, checkArmor, field);
+	BlockType_t blockType = Creature::blockHit(attacker, combatType, damage, field);
 
 	if (attacker) {
 		sendCreatureSquare(attacker, SQ_COLOR_BLACK);
@@ -1818,58 +1594,11 @@ BlockType_t Player::blockHit(Creature* attacker, CombatType_t combatType, int32_
 		return blockType;
 	}
 
-	if (damage <= 0) {
+	if (getHisPokemon() && attacker->getAttackedCreature() != this) {
 		damage = 0;
-		return BLOCK_ARMOR;
+		return BLOCK_IMMUNITY;
 	}
 
-	for (int32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; ++slot) {
-		if (!isItemAbilityEnabled(static_cast<slots_t>(slot))) {
-			continue;
-		}
-
-		Item* item = inventory[slot];
-		if (!item) {
-			continue;
-		}
-
-		const ItemType& it = Item::items[item->getID()];
-		if (!it.abilities) {
-			if (damage <= 0) {
-				damage = 0;
-				return BLOCK_ARMOR;
-			}
-
-			continue;
-		}
-
-		const int16_t& absorbPercent = it.abilities->absorbPercent[combatTypeToIndex(combatType)];
-		if (absorbPercent != 0) {
-			damage -= std::round(damage * (absorbPercent / 100.));
-
-			uint16_t charges = item->getCharges();
-			if (charges != 0) {
-				g_game.transformItem(item, item->getID(), charges - 1);
-			}
-		}
-
-		if (field) {
-			const int16_t& fieldAbsorbPercent = it.abilities->fieldAbsorbPercent[combatTypeToIndex(combatType)];
-			if (fieldAbsorbPercent != 0) {
-				damage -= std::round(damage * (fieldAbsorbPercent / 100.));
-
-				uint16_t charges = item->getCharges();
-				if (charges != 0) {
-					g_game.transformItem(item, item->getID(), charges - 1);
-				}
-			}
-		}
-	}
-
-	if (damage <= 0) {
-		damage = 0;
-		blockType = BLOCK_ARMOR;
-	}
 	return blockType;
 }
 
@@ -1884,7 +1613,7 @@ uint32_t Player::getIP() const
 
 void Player::death(Creature* lastHitCreature)
 {
-	loginPosition = town->getTemplePosition();
+	loginPosition = town->getPokemonCenterPosition();
 
 	if (skillLoss) {
 		uint8_t unfairFightReduction = 100;
@@ -1909,41 +1638,13 @@ void Player::death(Creature* lastHitCreature)
 			}
 		}
 
-		//Magic level loss
-		uint64_t sumMana = 0;
-		uint64_t lostMana = 0;
-
-		//sum up all the mana
-		for (uint32_t i = 1; i <= magLevel; ++i) {
-			sumMana += vocation->getReqMana(i);
-		}
-
-		sumMana += manaSpent;
-
 		double deathLossPercent = getLostPercent() * (unfairFightReduction / 100.);
-
-		lostMana = static_cast<uint64_t>(sumMana * deathLossPercent);
-
-		while (lostMana > manaSpent && magLevel > 0) {
-			lostMana -= manaSpent;
-			manaSpent = vocation->getReqMana(magLevel);
-			magLevel--;
-		}
-
-		manaSpent -= lostMana;
-
-		uint64_t nextReqMana = vocation->getReqMana(magLevel + 1);
-		if (nextReqMana > vocation->getReqMana(magLevel)) {
-			magLevelPercent = Player::getPercentLevel(manaSpent, nextReqMana);
-		} else {
-			magLevelPercent = 0;
-		}
 
 		//Skill loss
 		for (uint8_t i = SKILL_FIRST; i <= SKILL_LAST; ++i) { //for each skill
 			uint64_t sumSkillTries = 0;
 			for (uint16_t c = 11; c <= skills[i].level; ++c) { //sum up all required tries for all skill levels
-				sumSkillTries += vocation->getReqSkillTries(i, c);
+				sumSkillTries += profession->getReqSkillTries(i, c);
 			}
 
 			sumSkillTries += skills[i].tries;
@@ -1959,12 +1660,12 @@ void Player::death(Creature* lastHitCreature)
 					break;
 				}
 
-				skills[i].tries = vocation->getReqSkillTries(i, skills[i].level);
+				skills[i].tries = profession->getReqSkillTries(i, skills[i].level);
 				skills[i].level--;
 			}
 
 			skills[i].tries = std::max<int32_t>(0, skills[i].tries - lostSkillTries);
-			skills[i].percent = Player::getPercentLevel(skills[i].tries, vocation->getReqSkillTries(i, skills[i].level));
+			skills[i].percent = Player::getPercentLevel(skills[i].tries, profession->getReqSkillTries(i, skills[i].level));
 		}
 
 		//Level loss
@@ -1974,15 +1675,14 @@ void Player::death(Creature* lastHitCreature)
 		if (expLoss != 0) {
 			uint32_t oldLevel = level;
 
-			if (vocation->getId() == VOCATION_NONE || level > 7) {
+			if (profession->getId() == PROFESSION_NONE || level > 7) {
 				experience -= expLoss;
 			}
 
 			while (level > 1 && experience < Player::getExpForLevel(level)) {
 				--level;
-				healthMax = std::max<int32_t>(0, healthMax - vocation->getHPGain());
-				manaMax = std::max<int32_t>(0, manaMax - vocation->getManaGain());
-				capacity = std::max<int32_t>(0, capacity - vocation->getCapGain());
+				healthMax = std::max<int32_t>(0, healthMax - profession->getHPGain());
+				capacity = std::max<int32_t>(0, capacity - profession->getCapGain());
 			}
 
 			if (oldLevel != level) {
@@ -2016,13 +1716,7 @@ void Player::death(Creature* lastHitCreature)
 		sendSkills();
 		sendReLoginWindow(unfairFightReduction);
 
-		if (getSkull() == SKULL_BLACK) {
-			health = 40;
-			mana = 0;
-		} else {
-			health = healthMax;
-			mana = manaMax;
-		}
+		health = healthMax;
 
 		auto it = conditions.begin(), end = conditions.end();
 		while (it != end) {
@@ -2055,7 +1749,7 @@ void Player::death(Creature* lastHitCreature)
 		}
 
 		health = healthMax;
-		g_game.internalTeleport(this, getTemplePosition(), true);
+		g_game.internalTeleport(this, getPokemonCenterPosition(), true);
 		g_game.addCreatureHealth(this);
 		onThink(EVENT_CREATURE_THINK_INTERVAL);
 		onIdleStatus();
@@ -2242,6 +1936,20 @@ bool Player::hasCapacity(const Item* item, uint32_t count) const
 	return itemWeight <= getFreeCapacity();
 }
 
+bool Player::hasPokemonCapacity(const Item* item) const
+{
+	if (hasFlag(PlayerFlag_CannotPickupItem)) {
+		return false;
+	}
+
+	if (hasFlag(PlayerFlag_HasInfinitePokemonCapacity) || item->getTopParent() == this) {
+		return true;
+	}
+
+	uint8_t pokemonCount = item->getContainer() != nullptr ? item->getPokemonCount() : 0;
+	return pokemonCount <= getFreePokemonCapacity();
+}
+
 ReturnValue Player::queryAdd(int32_t index, const Thing& thing, uint32_t count, uint32_t flags, Creature*) const
 {
 	const Item* item = thing.getItem();
@@ -2253,10 +1961,13 @@ ReturnValue Player::queryAdd(int32_t index, const Thing& thing, uint32_t count, 
 	if (childIsOwner) {
 		//a child container is querying the player, just check if enough capacity
 		bool skipLimit = hasBitSet(FLAG_NOLIMIT, flags);
-		if (skipLimit || hasCapacity(item, count)) {
-			return RETURNVALUE_NOERROR;
+		if (!skipLimit && !hasCapacity(item, count)) {
+			return RETURNVALUE_NOTENOUGHCAPACITY;
+		} else if (!skipLimit && !hasPokemonCapacity(item)) {
+			return RETURNVALUE_MAXPOKEMONINBAG;
 		}
-		return RETURNVALUE_NOTENOUGHCAPACITY;
+
+		return RETURNVALUE_NOERROR;
 	}
 
 	if (!item->isPickupable()) {
@@ -2266,31 +1977,25 @@ ReturnValue Player::queryAdd(int32_t index, const Thing& thing, uint32_t count, 
 	ReturnValue ret = RETURNVALUE_NOERROR;
 
 	const int32_t& slotPosition = item->getSlotPosition();
-	if ((slotPosition & SLOTP_HEAD) || (slotPosition & SLOTP_NECKLACE) ||
-	        (slotPosition & SLOTP_BACKPACK) || (slotPosition & SLOTP_ARMOR) ||
-	        (slotPosition & SLOTP_LEGS) || (slotPosition & SLOTP_FEET) ||
-	        (slotPosition & SLOTP_RING)) {
+	if ((slotPosition & SLOTP_ROD) || (slotPosition & SLOTP_POKEDEX) ||
+	        (slotPosition & SLOTP_BACKPACK) || (slotPosition & SLOTP_ORDER) ||
+	        (slotPosition & SLOTP_PORTRAIT) || (slotPosition & SLOTP_POKEBALL) ||
+	        (slotPosition & SLOTP_PICK) || ((slotPosition & SLOTP_SUPPORT) || (slotPosition & SLOTP_POKEBALL))) {
 		ret = RETURNVALUE_CANNOTBEDRESSED;
-	} else if (slotPosition & SLOTP_TWO_HAND) {
-		ret = RETURNVALUE_PUTTHISOBJECTINBOTHHANDS;
 	} else if ((slotPosition & SLOTP_RIGHT) || (slotPosition & SLOTP_LEFT)) {
-		if (!g_config.getBoolean(ConfigManager::CLASSIC_EQUIPMENT_SLOTS)) {
-			ret = RETURNVALUE_CANNOTBEDRESSED;
-		} else {
-			ret = RETURNVALUE_PUTTHISOBJECTINYOURHAND;
-		}
+		ret = RETURNVALUE_CANNOTBEDRESSED;
 	}
 
 	switch (index) {
-		case CONST_SLOT_HEAD: {
-			if (slotPosition & SLOTP_HEAD) {
+		case CONST_SLOT_ROD: {
+			if (slotPosition & SLOTP_ROD) {
 				ret = RETURNVALUE_NOERROR;
 			}
 			break;
 		}
 
-		case CONST_SLOT_NECKLACE: {
-			if (slotPosition & SLOTP_NECKLACE) {
+		case CONST_SLOT_POKEDEX: {
+			if (slotPosition & SLOTP_POKEDEX) {
 				ret = RETURNVALUE_NOERROR;
 			}
 			break;
@@ -2303,8 +2008,8 @@ ReturnValue Player::queryAdd(int32_t index, const Thing& thing, uint32_t count, 
 			break;
 		}
 
-		case CONST_SLOT_ARMOR: {
-			if (slotPosition & SLOTP_ARMOR) {
+		case CONST_SLOT_ORDER: {
+			if (slotPosition & SLOTP_ORDER) {
 				ret = RETURNVALUE_NOERROR;
 			}
 			break;
@@ -2312,121 +2017,48 @@ ReturnValue Player::queryAdd(int32_t index, const Thing& thing, uint32_t count, 
 
 		case CONST_SLOT_RIGHT: {
 			if (slotPosition & SLOTP_RIGHT) {
-				if (!g_config.getBoolean(ConfigManager::CLASSIC_EQUIPMENT_SLOTS)) {
-					if (item->getWeaponType() != WEAPON_SHIELD) {
-						ret = RETURNVALUE_CANNOTBEDRESSED;
-					} else {
-						const Item* leftItem = inventory[CONST_SLOT_LEFT];
-						if (leftItem) {
-							if ((leftItem->getSlotPosition() | slotPosition) & SLOTP_TWO_HAND) {
-								ret = RETURNVALUE_BOTHHANDSNEEDTOBEFREE;
-							} else {
-								ret = RETURNVALUE_NOERROR;
-							}
-						} else {
-							ret = RETURNVALUE_NOERROR;
-						}
-					}
-				} else if (slotPosition & SLOTP_TWO_HAND) {
-					if (inventory[CONST_SLOT_LEFT] && inventory[CONST_SLOT_LEFT] != item) {
-						ret = RETURNVALUE_BOTHHANDSNEEDTOBEFREE;
-					} else {
-						ret = RETURNVALUE_NOERROR;
-					}
-				} else if (inventory[CONST_SLOT_LEFT]) {
-					const Item* leftItem = inventory[CONST_SLOT_LEFT];
-					WeaponType_t type = item->getWeaponType(), leftType = leftItem->getWeaponType();
-
-					if (leftItem->getSlotPosition() & SLOTP_TWO_HAND) {
-						ret = RETURNVALUE_DROPTWOHANDEDITEM;
-					} else if (item == leftItem && count == item->getItemCount()) {
-						ret = RETURNVALUE_NOERROR;
-					} else if (leftType == WEAPON_SHIELD && type == WEAPON_SHIELD) {
-						ret = RETURNVALUE_CANONLYUSEONESHIELD;
-					} else if (leftType == WEAPON_NONE || type == WEAPON_NONE ||
-					           leftType == WEAPON_SHIELD || leftType == WEAPON_AMMO
-					           || type == WEAPON_SHIELD || type == WEAPON_AMMO) {
-						ret = RETURNVALUE_NOERROR;
-					} else {
-						ret = RETURNVALUE_CANONLYUSEONEWEAPON;
-					}
-				} else {
-					ret = RETURNVALUE_NOERROR;
-				}
+				ret = RETURNVALUE_NOERROR;
 			}
 			break;
 		}
 
 		case CONST_SLOT_LEFT: {
 			if (slotPosition & SLOTP_LEFT) {
-				if (!g_config.getBoolean(ConfigManager::CLASSIC_EQUIPMENT_SLOTS)) {
-					WeaponType_t type = item->getWeaponType();
-					if (type == WEAPON_NONE || type == WEAPON_SHIELD) {
-						ret = RETURNVALUE_CANNOTBEDRESSED;
-					} else if (inventory[CONST_SLOT_RIGHT] && (slotPosition & SLOTP_TWO_HAND)) {
-						ret = RETURNVALUE_BOTHHANDSNEEDTOBEFREE;
-					} else {
-						ret = RETURNVALUE_NOERROR;
-					}
-				} else if (slotPosition & SLOTP_TWO_HAND) {
-					if (inventory[CONST_SLOT_RIGHT] && inventory[CONST_SLOT_RIGHT] != item) {
-						ret = RETURNVALUE_BOTHHANDSNEEDTOBEFREE;
-					} else {
-						ret = RETURNVALUE_NOERROR;
-					}
-				} else if (inventory[CONST_SLOT_RIGHT]) {
-					const Item* rightItem = inventory[CONST_SLOT_RIGHT];
-					WeaponType_t type = item->getWeaponType(), rightType = rightItem->getWeaponType();
-
-					if (rightItem->getSlotPosition() & SLOTP_TWO_HAND) {
-						ret = RETURNVALUE_DROPTWOHANDEDITEM;
-					} else if (item == rightItem && count == item->getItemCount()) {
-						ret = RETURNVALUE_NOERROR;
-					} else if (rightType == WEAPON_SHIELD && type == WEAPON_SHIELD) {
-						ret = RETURNVALUE_CANONLYUSEONESHIELD;
-					} else if (rightType == WEAPON_NONE || type == WEAPON_NONE ||
-					           rightType == WEAPON_SHIELD || rightType == WEAPON_AMMO
-					           || type == WEAPON_SHIELD || type == WEAPON_AMMO) {
-						ret = RETURNVALUE_NOERROR;
-					} else {
-						ret = RETURNVALUE_CANONLYUSEONEWEAPON;
-					}
-				} else {
-					ret = RETURNVALUE_NOERROR;
-				}
-			}
-			break;
-		}
-
-		case CONST_SLOT_LEGS: {
-			if (slotPosition & SLOTP_LEGS) {
 				ret = RETURNVALUE_NOERROR;
 			}
 			break;
 		}
 
-		case CONST_SLOT_FEET: {
-			if (slotPosition & SLOTP_FEET) {
+		case CONST_SLOT_PORTRAIT: {
+			if (slotPosition & SLOTP_PORTRAIT) {
 				ret = RETURNVALUE_NOERROR;
 			}
 			break;
 		}
 
-		case CONST_SLOT_RING: {
-			if (slotPosition & SLOTP_RING) {
+		case CONST_SLOT_POKEBALL: {
+			if (slotPosition & SLOTP_POKEBALL) {
 				ret = RETURNVALUE_NOERROR;
 			}
 			break;
 		}
 
-		case CONST_SLOT_AMMO: {
-			if ((slotPosition & SLOTP_AMMO) || g_config.getBoolean(ConfigManager::CLASSIC_EQUIPMENT_SLOTS)) {
+		case CONST_SLOT_PICK: {
+			if (slotPosition & SLOTP_PICK) {
 				ret = RETURNVALUE_NOERROR;
 			}
 			break;
 		}
 
-		case CONST_SLOT_WHEREEVER:
+		case CONST_SLOT_SUPPORT: {
+			ret = RETURNVALUE_NOERROR;
+			break;
+		}
+
+		case CONST_SLOT_WHEREEVER: {
+			ret = RETURNVALUE_NOERROR;
+			break;
+		}
 		case -1:
 			ret = RETURNVALUE_NOTENOUGHROOM;
 			break;
@@ -2450,6 +2082,11 @@ ReturnValue Player::queryAdd(int32_t index, const Thing& thing, uint32_t count, 
 	//check if enough capacity
 	if (!hasCapacity(item, count)) {
 		return RETURNVALUE_NOTENOUGHCAPACITY;
+	}
+
+	//check if enough pokemon capacity
+	if (!hasPokemonCapacity(item)) {
+		return RETURNVALUE_MAXPOKEMONINBAG;
 	}
 
 	if (!g_moveEvents->onPlayerEquip(const_cast<Player*>(this), const_cast<Item*>(item), static_cast<slots_t>(index), true)) {
@@ -2485,8 +2122,8 @@ ReturnValue Player::queryMaxCount(int32_t index, const Thing& thing, uint32_t co
 							n += queryCount;
 						}
 					}
-				} else if (inventoryItem->isStackable() && item->equals(inventoryItem) && inventoryItem->getItemCount() < 100) {
-					uint32_t remainder = (100 - inventoryItem->getItemCount());
+				} else if (inventoryItem->isStackable() && item->equals(inventoryItem) && inventoryItem->getItemCount() < item->getItemMaxCount()) {
+					uint32_t remainder = (item->getItemMaxCount() - inventoryItem->getItemCount());
 
 					if (queryAdd(slotIndex, *item, remainder, flags) == RETURNVALUE_NOERROR) {
 						n += remainder;
@@ -2494,7 +2131,7 @@ ReturnValue Player::queryMaxCount(int32_t index, const Thing& thing, uint32_t co
 				}
 			} else if (queryAdd(slotIndex, *item, item->getItemCount(), flags) == RETURNVALUE_NOERROR) { //empty slot
 				if (item->isStackable()) {
-					n += 100;
+					n += item->getItemMaxCount();
 				} else {
 					++n;
 				}
@@ -2511,14 +2148,14 @@ ReturnValue Player::queryMaxCount(int32_t index, const Thing& thing, uint32_t co
 		}
 
 		if (destItem) {
-			if (destItem->isStackable() && item->equals(destItem) && destItem->getItemCount() < 100) {
-				maxQueryCount = 100 - destItem->getItemCount();
+			if (destItem->isStackable() && item->equals(destItem) && destItem->getItemCount() < item->getItemMaxCount()) {
+				maxQueryCount = item->getItemMaxCount() - destItem->getItemCount();
 			} else {
 				maxQueryCount = 0;
 			}
 		} else if (queryAdd(index, *item, count, flags) == RETURNVALUE_NOERROR) { //empty slot
 			if (item->isStackable()) {
-				maxQueryCount = 100;
+				maxQueryCount = item->getItemMaxCount();
 			} else {
 				maxQueryCount = 1;
 			}
@@ -2551,6 +2188,10 @@ ReturnValue Player::queryRemove(const Thing& thing, uint32_t count, uint32_t fla
 	}
 
 	if (!item->isMoveable() && !hasBitSet(FLAG_IGNORENOTMOVEABLE, flags)) {
+		return RETURNVALUE_NOTMOVEABLE;
+	}
+
+	if (getHisPokemon() && (item->getSlotPosition() & SLOTP_POKEBALL)) {
 		return RETURNVALUE_NOTMOVEABLE;
 	}
 
@@ -2587,7 +2228,7 @@ Cylinder* Player::queryDestination(int32_t& index, const Thing& thing, Item** de
 				if (autoStack && isStackable) {
 					//try find an already existing item to stack with
 					if (queryAdd(slotIndex, *item, item->getItemCount(), 0) == RETURNVALUE_NOERROR) {
-						if (inventoryItem->equals(item) && inventoryItem->getItemCount() < 100) {
+						if (inventoryItem->equals(item) && inventoryItem->getItemCount() < item->getItemMaxCount()) {
 							index = slotIndex;
 							*destItem = inventoryItem;
 							return this;
@@ -2644,7 +2285,7 @@ Cylinder* Player::queryDestination(int32_t& index, const Thing& thing, Item** de
 				}
 
 				//try find an already existing item to stack with
-				if (tmpItem->equals(item) && tmpItem->getItemCount() < 100) {
+				if (tmpItem->equals(item) && tmpItem->getItemCount() < item->getItemMaxCount()) {
 					index = n;
 					*destItem = tmpItem;
 					return tmpContainer;
@@ -2772,7 +2413,7 @@ void Player::removeThing(Thing* thing, uint32_t count)
 			item->setParent(nullptr);
 			inventory[index] = nullptr;
 		} else {
-			uint8_t newCount = static_cast<uint8_t>(std::max<int32_t>(0, item->getItemCount() - count));
+			uint16_t newCount = static_cast<uint16_t>(std::max<int32_t>(0, item->getItemCount() - count));
 			item->setItemCount(newCount);
 
 			//send change to client
@@ -2938,6 +2579,7 @@ void Player::postAddNotification(Thing* thing, const Cylinder* oldParent, int32_
 		}
 
 		updateInventoryWeight();
+		updateInventoryPokemonCount();
 		updateItemsLight();
 		sendStats();
 	}
@@ -2992,6 +2634,7 @@ void Player::postRemoveNotification(Thing* thing, const Cylinder* newParent, int
 		}
 
 		updateInventoryWeight();
+		updateInventoryPokemonCount();
 		updateItemsLight();
 		sendStats();
 	}
@@ -3033,7 +2676,7 @@ void Player::postRemoveNotification(Thing* thing, const Cylinder* newParent, int
 bool Player::updateSaleShopList(const Item* item)
 {
 	uint16_t itemId = item->getID();
-	if (itemId != ITEM_GOLD_COIN && itemId != ITEM_PLATINUM_COIN && itemId != ITEM_CRYSTAL_COIN) {
+	if (itemId != ITEM_COIN && itemId != ITEM_DOLLAR_NOTE && itemId != ITEM_HUNDRED_DOLLAR_NOTE && itemId != ITEM_TEN_THOUSAND_DOLLAR_NOTE && itemId != ITEM_MILLION_DOLLAR_NOTE) {
 		auto it = std::find_if(shopItemList.begin(), shopItemList.end(), [itemId](const ShopInfo& shopInfo) { return shopInfo.itemId == itemId && shopInfo.sellPrice != 0; });
 		if (it == shopItemList.end()) {
 			const Container* container = item->getContainer();
@@ -3054,7 +2697,7 @@ bool Player::updateSaleShopList(const Item* item)
 	return true;
 }
 
-bool Player::hasShopItemForSale(uint32_t itemId, uint8_t subType) const
+bool Player::hasShopItemForSale(uint32_t itemId, uint16_t subType) const
 {
 	const ItemType& itemType = Item::items[itemId];
 	return std::any_of(shopItemList.begin(), shopItemList.end(), [&](const ShopInfo& shopInfo) {
@@ -3144,45 +2787,7 @@ void Player::getPathSearchParams(const Creature* creature, FindPathParams& fpp) 
 
 void Player::doAttacking(uint32_t)
 {
-	if (lastAttack == 0) {
-		lastAttack = OTSYS_TIME() - getAttackSpeed() - 1;
-	}
-
-	if (hasCondition(CONDITION_PACIFIED)) {
-		return;
-	}
-
-	if ((OTSYS_TIME() - lastAttack) >= getAttackSpeed()) {
-		bool result = false;
-
-		Item* tool = getWeapon();
-		const Weapon* weapon = g_weapons->getWeapon(tool);
-		uint32_t delay = getAttackSpeed();
-		bool classicSpeed = g_config.getBoolean(ConfigManager::CLASSIC_ATTACK_SPEED);
-
-		if (weapon) {
-			if (!weapon->interruptSwing()) {
-				result = weapon->useWeapon(this, tool, attackedCreature);
-			} else if (!classicSpeed && !canDoAction()) {
-				delay = getNextActionTime();
-			} else {
-				result = weapon->useWeapon(this, tool, attackedCreature);
-			}
-		} else {
-			result = Weapon::useFist(this, attackedCreature);
-		}
-
-		SchedulerTask* task = createSchedulerTask(std::max<uint32_t>(SCHEDULER_MINTICKS, delay), std::bind(&Game::checkCreatureAttack, &g_game, getID()));
-		if (!classicSpeed) {
-			setNextActionTask(task);
-		} else {
-			g_scheduler.addEvent(task);
-		}
-
-		if (result) {
-			lastAttack = OTSYS_TIME();
-		}
-	}
+	return;
 }
 
 uint64_t Player::getGainedExperience(Creature* attacker) const
@@ -3298,7 +2903,7 @@ void Player::onAddCombatCondition(ConditionType_t type)
 			sendTextMessage(MESSAGE_STATUS_DEFAULT, "You are paralyzed.");
 			break;
 
-		case CONDITION_DRUNK:
+		case CONDITION_CONFUSION:
 			sendTextMessage(MESSAGE_STATUS_DEFAULT, "You are drunk.");
 			break;
 
@@ -3331,10 +2936,6 @@ void Player::onEndCondition(ConditionType_t type)
 		onIdleStatus();
 		pzLocked = false;
 		clearAttacked();
-
-		if (getSkull() != SKULL_RED && getSkull() != SKULL_BLACK) {
-			setSkull(SKULL_NONE);
-		}
 	}
 
 	sendIcons();
@@ -3386,36 +2987,6 @@ void Player::onAttackedCreature(Creature* target)
 		return;
 	}
 
-	Player* targetPlayer = target->getPlayer();
-	if (targetPlayer && !isPartner(targetPlayer) && !isGuildMate(targetPlayer)) {
-		if (!pzLocked && g_game.getWorldType() == WORLD_TYPE_PVP_ENFORCED) {
-			pzLocked = true;
-			sendIcons();
-		}
-
-		if (getSkull() == SKULL_NONE && getSkullClient(targetPlayer) == SKULL_YELLOW) {
-			addAttacked(targetPlayer);
-			targetPlayer->sendCreatureSkull(this);
-		} else if (!targetPlayer->hasAttacked(this)) {
-			if (!pzLocked) {
-				pzLocked = true;
-				sendIcons();
-			}
-
-			if (!Combat::isInPvpZone(this, targetPlayer) && !isInWar(targetPlayer)) {
-				addAttacked(targetPlayer);
-
-				if (targetPlayer->getSkull() == SKULL_NONE && getSkull() == SKULL_NONE) {
-					setSkull(SKULL_WHITE);
-				}
-
-				if (getSkull() == SKULL_NONE) {
-					targetPlayer->sendCreatureSkull(this);
-				}
-			}
-		}
-	}
-
 	addInFightTicks();
 }
 
@@ -3441,6 +3012,12 @@ void Player::onPlacedCreature()
 	if (!g_creatureEvents->playerLogin(this)) {
 		kickPlayer(true);
 	}
+
+	Tile* tile = getTile();
+	if (tile->getMusic() != CONST_SE_NONE) {
+		sendSound(getPosition(), tile->getMusic(), SOUND_CHANNEL_MUSIC);
+		setListeningMusic(tile->getMusic());
+	}
 }
 
 void Player::onAttackedCreatureDrainHealth(Creature* target, int32_t points)
@@ -3449,8 +3026,8 @@ void Player::onAttackedCreatureDrainHealth(Creature* target, int32_t points)
 
 	if (target) {
 		if (party && !Combat::isPlayerCombat(target)) {
-			Monster* tmpMonster = target->getMonster();
-			if (tmpMonster && tmpMonster->isHostile()) {
+			Pokemon* tmpPokemon = target->getPokemon();
+			if (tmpPokemon && tmpPokemon->isHostile()) {
 				//We have fulfilled a requirement for shared experience
 				party->updatePlayerTicks(this, points);
 			}
@@ -3495,19 +3072,6 @@ bool Player::onKilledCreature(Creature* target, bool lastHit/* = true*/)
 	if (targetPlayer->getZone() == ZONE_PVP) {
 		targetPlayer->setDropLoot(false);
 		targetPlayer->setSkillLoss(false);
-	} else if (!hasFlag(PlayerFlag_NotGainInFight) && !isPartner(targetPlayer)) {
-		if (!Combat::isInPvpZone(this, targetPlayer) && hasAttacked(targetPlayer) && !targetPlayer->hasAttacked(this) && !isGuildMate(targetPlayer) && targetPlayer != this) {
-			if (targetPlayer->getSkull() == SKULL_NONE && !isInWar(targetPlayer)) {
-				unjustified = true;
-				addUnjustifiedDead(targetPlayer);
-			}
-
-			if (lastHit && hasCondition(CONDITION_INFIGHT)) {
-				pzLocked = true;
-				Condition* condition = Condition::createCondition(CONDITIONID_DEFAULT, CONDITION_INFIGHT, g_config.getNumber(ConfigManager::WHITE_SKULL_TIME), 0);
-				addCondition(condition);
-			}
-		}
 	}
 
 	return unjustified;
@@ -3584,28 +3148,29 @@ void Player::changeHealth(int32_t healthChange, bool sendHealthChange/* = true*/
 	sendStats();
 }
 
-void Player::changeMana(int32_t manaChange)
+void Player::changePokemonHealth(int32_t healthChange)
 {
-	if (!hasFlag(PlayerFlag_HasInfiniteMana)) {
-		if (manaChange > 0) {
-			mana += std::min<int32_t>(manaChange, getMaxMana() - mana);
-		} else {
-			mana = std::max<int32_t>(0, mana + manaChange);
-		}
+	if (healthChange > 0) {
+		pokemonHealth += std::min<int32_t>(healthChange, getPokemonHealthMax() - pokemonHealth);
+	} else {
+		pokemonHealth = std::max<int32_t>(0, pokemonHealth + healthChange);
 	}
 
 	sendStats();
 }
 
-void Player::changeSoul(int32_t soulChange)
+bool Player::hasPokedexEntry(uint16_t pokemonNumber) const
 {
-	if (soulChange > 0) {
-		soul += std::min<int32_t>(soulChange, vocation->getSoulMax() - soul);
-	} else {
-		soul = std::max<int32_t>(0, soul + soulChange);
+	if (group->access) {
+		return true;
 	}
 
-	sendStats();
+	for (const PokedexEntry& pokedexEntry : pokedexEntries) {
+		if (pokedexEntry.pokemonNumber == pokemonNumber) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool Player::canWear(uint32_t lookType, uint8_t addons) const
@@ -3659,6 +3224,11 @@ void Player::genReservedStorageRange()
 	uint32_t base_key = PSTRG_OUTFITS_RANGE_START;
 	for (const OutfitEntry& entry : outfits) {
 		storageMap[++base_key] = (entry.lookType << 16) | entry.addons;
+	}
+	//generate pokedex range
+	base_key = PSTRG_POKEDEX_RANGE_START;
+	for (const PokedexEntry& entry : pokedexEntries) {
+		storageMap[++base_key] = (entry.pokemonNumber << 16);
 	}
 }
 
@@ -3724,46 +3294,66 @@ bool Player::getOutfitAddons(const Outfit& outfit, uint8_t& addons) const
 	return true;
 }
 
+void Player::addPokedexEntry(uint16_t pokemonNumber)
+{
+	for (PokedexEntry& pokedexEntry : pokedexEntries) {
+		if (pokedexEntry.pokemonNumber == pokemonNumber) {
+			return;
+		}
+	}
+
+	pokedexEntries.emplace_back(pokemonNumber);
+}
+
+bool Player::removePokedexEntry(uint16_t pokemonNumber)
+{
+	for (auto it = pokedexEntries.begin(), end = pokedexEntries.end(); it != end; ++it) {
+		PokedexEntry& entry = *it;
+		if (entry.pokemonNumber == pokemonNumber) {
+			pokedexEntries.erase(it);
+			return true;
+		}
+	}
+	return false;
+}
+
 void Player::setSex(PlayerSex_t newSex)
 {
 	sex = newSex;
 }
 
-Skulls_t Player::getSkull() const
+Genders_t Player::getGender() const
 {
-	if (hasFlag(PlayerFlag_NotGainInFight)) {
-		return SKULL_NONE;
-	}
-	return skull;
+	return gender;
 }
 
-Skulls_t Player::getSkullClient(const Creature* creature) const
+Genders_t Player::getGenderClient(const Creature* creature) const
 {
-	if (!creature || g_game.getWorldType() != WORLD_TYPE_PVP) {
-		return SKULL_NONE;
+	if (!creature) {
+		return GENDER_NONE;
 	}
 
 	const Player* player = creature->getPlayer();
-	if (!player || player->getSkull() != SKULL_NONE) {
-		return Creature::getSkullClient(creature);
+	if (!player || player->getGender() != GENDER_NONE) {
+		return Creature::getGenderClient(creature);
 	}
 
 	if (isInWar(player)) {
-		return SKULL_GREEN;
+		return GENDER_MALE;
 	}
 
 	if (!player->getGuildWarVector().empty() && guild == player->getGuild()) {
-		return SKULL_GREEN;
+		return GENDER_MALE;
 	}
 
 	if (player->hasAttacked(this)) {
-		return SKULL_YELLOW;
+		return GENDER_UNDEFINED;
 	}
 
 	if (isPartner(player)) {
-		return SKULL_GREEN;
+		return GENDER_MALE;
 	}
-	return Creature::getSkullClient(creature);
+	return Creature::getGenderClient(creature);
 }
 
 bool Player::hasAttacked(const Player* attacked) const
@@ -3808,36 +3398,12 @@ void Player::addUnjustifiedDead(const Player* attacked)
 	}
 
 	sendTextMessage(MESSAGE_EVENT_ADVANCE, "Warning! The murder of " + attacked->getName() + " was not justified.");
-
-	skullTicks += g_config.getNumber(ConfigManager::FRAG_TIME);
-
-	if (getSkull() != SKULL_BLACK) {
-		if (g_config.getNumber(ConfigManager::KILLS_TO_BLACK) != 0 && skullTicks > (g_config.getNumber(ConfigManager::KILLS_TO_BLACK) - 1) * static_cast<int64_t>(g_config.getNumber(ConfigManager::FRAG_TIME))) {
-			setSkull(SKULL_BLACK);
-		} else if (getSkull() != SKULL_RED && g_config.getNumber(ConfigManager::KILLS_TO_RED) != 0 && skullTicks > (g_config.getNumber(ConfigManager::KILLS_TO_RED) - 1) * static_cast<int64_t>(g_config.getNumber(ConfigManager::FRAG_TIME))) {
-			setSkull(SKULL_RED);
-		}
-	}
-}
-
-void Player::checkSkullTicks(int32_t ticks)
-{
-	int32_t newTicks = skullTicks - ticks;
-	if (newTicks < 0) {
-		skullTicks = 0;
-	} else {
-		skullTicks = newTicks;
-	}
-
-	if ((skull == SKULL_RED || skull == SKULL_BLACK) && skullTicks < 1000 && !hasCondition(CONDITION_INFIGHT)) {
-		setSkull(SKULL_NONE);
-	}
 }
 
 bool Player::isPromoted() const
 {
-	uint16_t promotedVocation = g_vocations.getPromotedVocation(vocation->getId());
-	return promotedVocation == VOCATION_NONE && vocation->getId() != promotedVocation;
+	uint16_t promotedProfession = g_professions.getPromotedProfession(profession->getId());
+	return promotedProfession == PROFESSION_NONE && profession->getId() != promotedProfession;
 }
 
 double Player::getLostPercent() const
@@ -3869,34 +3435,325 @@ double Player::getLostPercent() const
 	return lossPercent * pow(0.92, blessingCount) / 100;
 }
 
-void Player::learnInstantSpell(const std::string& spellName)
+void Player::tryCatchPokemon(const PokeballType* pokeballType, Item* corpse, double rate, const Position& toPos)
 {
-	if (!hasLearnedInstantSpell(spellName)) {
-		learnedInstantSpellList.push_front(spellName);
+	if (!pokeballType || !corpse) {
+		return;
 	}
+
+	PokemonType* pokemonType = g_pokemons.getPokemonType(corpse->getPokemonCorpseType());
+	if (!pokemonType) {
+		return;
+	}
+
+	const Position& pos = getPosition();
+	uint16_t delay = 75 * (sqrt(pow((pos.x - toPos.x), 2) + pow((pos.y - toPos.y), 2)));
+	uint16_t tryEffect;
+	EffectClasses pokemonEmot;
+	std::ostringstream message;
+	rate = (pokemonType->info.catchRate * rate) * g_config.getNumber(ConfigManager::RATE_CATCH);
+
+	addInFightTicks(3001 + delay);
+
+	if (uniform_random(1, 100) <= rate || rate > 100) {
+		Pokemon* pokemon = Pokemon::createPokemon(pokemonType->typeName);
+
+		if (!pokemon) {
+			return;
+		}
+
+		pokemon->setGender(corpse->getPokemonCorpseGender());
+		pokemon->setNature(corpse->getPokemonCorpseNature());
+		pokemon->setShinyStatus(corpse->getPokemonCorpseShinyStatus());
+		pokemon->setPokeballType(pokeballType);
+		pokemon->setLevel(getLevel());
+		pokemon->setHealth(pokemon->getMaxHealth());
+
+		if (!IOLoginData::savePokemon(pokemon)) {
+			return;
+		}
+
+		tryEffect = pokeballType->getCatchSuccessEffect();
+		pokemonEmot = CONST_ME_EMOT_EXCLAMATION;
+		message << "You caught a Pokemon! (" + pokemon->getName() + ").";
+		g_scheduler.addEvent(createSchedulerTask(3001 + delay, std::bind(&Game::sendPokemonToPlayer, &g_game, getID(), pokemon)));
+		g_scheduler.addEvent(createSchedulerTask(3000 + delay, std::bind(&Game::addSoundToPlayer, &g_game, getID(), CONST_SE_CATCHSUCCESS, SOUND_CHANNEL_EFFECT)));
+		g_scheduler.addEvent(createSchedulerTask(3000 + delay, std::bind(&Events::eventPlayerOnCatchPokemon, g_events, getID(), pokemonType, pokeballType, pokemon)));
+	} else {
+		tryEffect = pokeballType->getCatchFailEffect();
+		pokemonEmot = CONST_ME_EMOT_THREE_POINTS;
+		message << "Sorry, your pokeball broke.";
+		g_scheduler.addEvent(createSchedulerTask(3000 + delay, std::bind(&Events::eventPlayerOnDontCatchPokemon, g_events, getID(), pokemonType, pokeballType)));
+	}
+
+	g_game.internalRemoveItem(corpse, 1);
+	g_game.addDistanceEffect(pos, toPos, pokeballType->getShotEffect());
+
+	g_scheduler.addEvent(createSchedulerTask(delay, std::bind(static_cast<void(Game::*)(const Position&, uint16_t)>(&Game::addEffect), &g_game, toPos, tryEffect)));
+	g_scheduler.addEvent(createSchedulerTask(3000 + delay, std::bind(&Game::playerSendPokemonEffect, &g_game, getID(), pokemonEmot)));
+	g_scheduler.addEvent(createSchedulerTask(3000 + delay, std::bind(&Events::eventPlayerOnTryCatchPokemon, g_events, getID(), pokemonType, pokeballType)));
+	g_scheduler.addEvent(createSchedulerTask(3000 + delay, std::bind(&Game::playerSendTextMessage, &g_game, getID(), MESSAGE_STATUS_CONSOLE_BLUE, message.str())));
 }
 
-void Player::forgetInstantSpell(const std::string& spellName)
+void Player::orderPokemon(const Position& toPos, Creature* creature)
 {
-	learnedInstantSpellList.remove(spellName);
-}
+	Pokemon* pokemon = getHisPokemon();
+	if (pokemon) {
+		if (pokemon == creature) {
+			if (!pokemon->hasSpecialAbility(SPECIALABILITY_FLASH)) {
+				return;
+			}
 
-bool Player::hasLearnedInstantSpell(const std::string& spellName) const
-{
-	if (hasFlag(PlayerFlag_CannotUseSpells)) {
-		return false;
-	}
+			Condition* condition = Condition::createCondition(CONDITIONID_COMBAT, CONDITION_LIGHT, (11 * 60 + 35) * 1000, 8 | (215 << 8));
+			pokemon->addCondition(condition);
+			g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, pokemon->getName() + ", flash!", false);
+			return;
+		} else {
+			Tile* tile = g_game.map.getTile(toPos);
+			if (!tile) {
+				return;
+			}
 
-	if (hasFlag(PlayerFlag_IgnoreSpellCheck)) {
-		return true;
-	}
+			Item* item = g_game.map.getTile(toPos)->getTopTopItem();
+			if (item && ((item->isCuttable() && pokemon->hasSpecialAbility(SPECIALABILITY_CUT)) ||
+			    (item->isSmashable() && pokemon->hasSpecialAbility(SPECIALABILITY_ROCKSMASH)))) {
+				if (!pokemon->moveTo(toPos, 0, 1)) {
+					return;
+				}
 
-	for (const auto& learnedSpellName : learnedInstantSpellList) {
-		if (strcasecmp(learnedSpellName.c_str(), spellName.c_str()) == 0) {
-			return true;
+				if (item->isCuttable()) {
+					g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, pokemon->getName() + ", cut!", false);
+				} else {
+					g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, pokemon->getName() + ", break it!", false);
+				}
+
+				pokemon->setNextOrder(std::bind(&Pokemon::checkCutDigOrRockSmash, pokemon, item));
+			} else {
+				Item* item = tile->getThing(0)->getItem();
+				if (item && item->isDiggable() && pokemon->hasSpecialAbility(SPECIALABILITY_DIG)) {
+					if (!pokemon->moveTo(toPos, 0, 1)) {
+						return;
+					}
+
+					pokemon->setNextOrder(std::bind(&Pokemon::checkCutDigOrRockSmash, pokemon, item));
+					g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, pokemon->getName() + ", dig!", false);
+				} else {
+					if (!pokemon->moveTo(toPos, 0, 0)) {
+						return;
+					}
+
+					g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, pokemon->getName() + ", move!", false);
+				}	
+			}
+		}
+	} else {
+		if (this == creature) {
+			// get out of fly or ride...
+			return;
 		}
 	}
-	return false;
+}
+
+void Player::sendPokemonEffect(uint16_t effect) const
+{
+	if (Pokemon* pokemon = getHisPokemon()) {
+		g_game.addEffect(pokemon->getPosition(), effect);
+	}
+}
+
+void Player::sendPokemonTextMessage(const std::string& message) const
+{
+	g_game.internalCreatureSay(getHisPokemon(), TALKTYPE_POKEMON_YELL, message, false);
+}
+
+void Player::evolvePokemon(Item* item, Creature* creature)
+{
+	if (!item) {
+		return;
+	}
+
+	if (!creature || !creature->getPokemon()) {
+		sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "You can only use evolution stone in a Pokemon.");
+		return;
+	}
+
+	Pokemon* pokemon = creature->getPokemon();
+	if (!pokemon->belongsToPlayer(this)) {
+		sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "You can only evolve your own Pokemon.");
+		return;
+	}
+
+	if (!pokemon->canEvolve()) {
+		sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, pokemon->getPokemonType()->name + " has no evolution.");
+		return;
+	}
+
+	for (auto const& evolution : pokemon->getEvolutions()) {
+		if (evolution.stone == item->getID()) {
+			PokemonType* pmType = g_pokemons.getPokemonType(evolution.to);
+			if (!pmType) {
+				sendTextMessage(MESSAGE_STATUS_CONSOLE_RED, pokemon->getPokemonType()->name + " has a invalid evolution. Please reporter to the game master.");
+				return;
+			}
+
+			if (getLevel() < pokemon->getLevelToUse()) {
+				sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "You need level " + std::to_string(pmType->info.level) + " to evolve your " + pokemon->getPokemonType()->name + " into " + pmType->nameDescription + ".");
+				return;
+			}
+
+			if (evolution.at == 1 && ((!g_game.isNight() && !g_game.isSunset()) && !pokemon->getTile()->hasFlag(TILESTATE_CAVE))) {
+				sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, pokemon->getPokemonType()->name + " only evolves at night or inside a cave.");
+				return;
+			} else if (evolution.at == 2 && (!g_game.isDay() && !g_game.isSunrise())) {
+				sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, pokemon->getPokemonType()->name + " only evolves during the day.");
+				return;
+			}
+
+			std::string oldName = pokemon->getPokemonType()->name;
+
+			pokemon->transform(pmType);
+			g_game.internalRemoveItem(item, 1);
+
+			// transform portrait
+			Item* item = getInventoryItem(CONST_SLOT_PORTRAIT);
+			if (item) {
+				g_game.transformItem(item, pokemon->getPortrait());
+			}
+
+			// transform pokeball
+			Item* pokeball = getInventoryItem(CONST_SLOT_POKEBALL);
+			if (pokeball) {
+				g_game.transformItem(pokeball, pokemon->getDischargedIcon());
+				pokeball->setDescription("It contains " + pmType->nameDescription + ".");
+				pokeball->setPrice(pokemon->getBasePrice());
+			}
+
+			sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "Congratulations! " + oldName + " evolved to " + pmType->nameDescription + "!");
+			sendStats();
+			g_game.addEffect(pokemon->getPosition(), CONST_ME_EVOLUTION);
+			return;
+		}
+	}
+
+	sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, capitalizeString(item->getName()) + " seems to have no effect on " + pokemon->getPokemonType()->name + ".");
+}
+
+bool Player::feed(const FoodType* foodType)
+{
+	Condition* condition = getCondition(CONDITION_REGENERATION, CONDITIONID_DEFAULT);
+	if (condition) {
+		if ((condition->getTicks() / 1000 + (foodType->getRegen() * 12)) > 1200) {
+			sendTextMessage(MESSAGE_STATUS_SMALL, "You are full.");
+			return false;
+		}
+		
+		condition->setTicks(condition->getTicks() + (foodType->getRegen() * 12 * 1000));
+		condition->setParam(CONDITION_PARAM_HEALTHGAIN, profession->getHealthGainAmount());
+		condition->setParam(CONDITION_PARAM_HEALTHTICKS, profession->getHealthGainTicks() * 1000);
+	} else {
+		condition = Condition::createCondition(CONDITIONID_DEFAULT, CONDITION_REGENERATION, foodType->getRegen() * 12 * 1000, 0);
+		condition->setTicks(foodType->getRegen() * 12 * 1000);
+		condition->setParam(CONDITION_PARAM_HEALTHGAIN, getProfession()->getHealthGainAmount());
+		condition->setParam(CONDITION_PARAM_HEALTHTICKS, getProfession()->getHealthGainTicks() * 1000);
+		addCondition(condition);
+	}
+
+	g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, foodType->getSound(), false);
+	return true;
+}
+
+void Player::gobackPokemon(Item* item)
+{
+	setNextAction(OTSYS_TIME() + g_config.getNumber(ConfigManager::EX_ACTIONS_DELAY_INTERVAL));
+
+	if (!item || !item->hasAttribute(ITEM_ATTRIBUTE_POKEMONID)) {
+		return;
+	}
+	
+	if (getInventoryItem(CONST_SLOT_POKEBALL) != item) {
+		sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "You must put your pokeball on right place.");
+		return;
+	}
+
+	Pokemon* pokemon = getHisPokemon();
+	std::string message;
+	// back to the pokeball...
+	if (pokemon) {
+		if (!pokemon->isPersistent()) {
+			sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "This Pokemon does not belong to a Pokeball.");
+			return;
+		}
+
+		message = pokemon->getName() + getCallbackPokemonMessage(CallbackPokemon(rand() % CALLBACKPOKEMON_MESSAGE_LAST));
+
+		if (!g_game.removeCreature(pokemon)) {
+			return;
+		}
+
+		if (item->getID() != pokemon->getChargedIcon()) {
+			g_game.transformItem(item, pokemon->getChargedIcon());
+		}
+
+		g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, message, false);
+		g_game.addEffect(pokemon->getPosition(), pokemon->getPokeballType()->getGobackEffect());
+	// out of the pokeball...
+	} else {
+		pokemon = g_game.getPokemonByGUID(item->getPokemonId());
+		if (!pokemon) {
+			sendTextMessage(MESSAGE_STATUS_CONSOLE_RED, "Pokemon not found! Please contact an administrator.");
+			return;
+		}
+
+		if (pokemon->getHealth() <= 0) {
+			sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "Your Pokemon are fainted.");
+			return;
+		}
+
+		if (getLevel() < pokemon->getLevelToUse()) {
+			sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "You need level " + std::to_string(pokemon->getLevelToUse()) + " to use this Pokemon.");
+			return;
+		}
+
+		pokemon->setMaster(this);
+		pokemon->setFollowCreature(this);
+
+		if (!g_game.placeCreature(pokemon, getPosition(), false, false, false)) {
+			sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, "You cannot use your Pokemon here.");
+			pokemon->setMaster(nullptr);
+			pokemon->setFollowCreature(nullptr);
+			return;
+		}		
+
+		if (item->getID() != pokemon->getDischargedIcon()) {
+			g_game.transformItem(item, pokemon->getDischargedIcon());
+		}
+
+		message = pokemon->getName() + getCallPokemonMessage(CallPokemon(rand() % CALLPOKEMON_MESSAGE_LAST));
+
+		g_game.internalCreatureSay(this, TALKTYPE_POKEMON_SAY, message, false);
+		g_game.addEffect(pokemon->getPosition(), pokemon->getPokeballType()->getGobackEffect());
+	}
+}
+
+void Player::sendPokemon(Pokemon* pokemon)
+{
+	if (!pokemon || !pokemon->getPokeballType()) {
+		return;
+	}
+
+	Item* pokeball = Item::CreateItem(pokemon->getChargedIcon(), 1);
+	pokeball->setPokemonId(pokemon->getGUID());
+	pokeball->setName(pokemon->getPokeballType()->getName());
+	pokeball->setDescription("It contains " + pokemon->getNameDescription() + ".");
+	pokeball->setPrice(pokemon->getPrice());
+
+	if (getFreePokemonCapacity() == 0) {
+		std::string message = "You already hold six pokemon, your new pokemon will be teleported to the Pokemon Center!";
+		sendTextMessage(MESSAGE_STATUS_CONSOLE_BLUE, message);
+		g_game.internalAddItem(getInbox(), pokeball, INDEX_WHEREEVER, FLAG_NOLIMIT);
+	} else {
+		g_game.internalAddItem(this, pokeball, INDEX_WHEREEVER, 0);
+	}
 }
 
 bool Player::isInWar(const Player* player) const
@@ -3998,7 +3855,7 @@ bool Player::isInviting(const Player* player) const
 
 bool Player::isPartner(const Player* player) const
 {
-	if (!player || !party) {
+	if (!player || !party || player == this) {
 		return false;
 	}
 	return party == player->party;
@@ -4015,7 +3872,6 @@ bool Player::isGuildMate(const Player* player) const
 void Player::sendPlayerPartyIcons(Player* player)
 {
 	sendCreatureShield(player);
-	sendCreatureSkull(player);
 }
 
 bool Player::addPartyInvitation(Party* party)
@@ -4226,138 +4082,6 @@ void Player::dismount()
 	}
 
 	defaultOutfit.lookMount = 0;
-}
-
-bool Player::addOfflineTrainingTries(skills_t skill, uint64_t tries)
-{
-	if (tries == 0 || skill == SKILL_LEVEL) {
-		return false;
-	}
-
-	bool sendUpdate = false;
-	uint32_t oldSkillValue, newSkillValue;
-	long double oldPercentToNextLevel, newPercentToNextLevel;
-
-	if (skill == SKILL_MAGLEVEL) {
-		uint64_t currReqMana = vocation->getReqMana(magLevel);
-		uint64_t nextReqMana = vocation->getReqMana(magLevel + 1);
-
-		if (currReqMana >= nextReqMana) {
-			return false;
-		}
-
-		oldSkillValue = magLevel;
-		oldPercentToNextLevel = static_cast<long double>(manaSpent * 100) / nextReqMana;
-
-		g_events->eventPlayerOnGainSkillTries(this, SKILL_MAGLEVEL, tries);
-		uint32_t currMagLevel = magLevel;
-
-		while ((manaSpent + tries) >= nextReqMana) {
-			tries -= nextReqMana - manaSpent;
-
-			magLevel++;
-			manaSpent = 0;
-
-			g_creatureEvents->playerAdvance(this, SKILL_MAGLEVEL, magLevel - 1, magLevel);
-
-			sendUpdate = true;
-			currReqMana = nextReqMana;
-			nextReqMana = vocation->getReqMana(magLevel + 1);
-
-			if (currReqMana >= nextReqMana) {
-				tries = 0;
-				break;
-			}
-		}
-
-		manaSpent += tries;
-
-		if (magLevel != currMagLevel) {
-			std::ostringstream ss;
-			ss << "You advanced to magic level " << magLevel << '.';
-			sendTextMessage(MESSAGE_EVENT_ADVANCE, ss.str());
-		}
-
-		uint8_t newPercent;
-		if (nextReqMana > currReqMana) {
-			newPercent = Player::getPercentLevel(manaSpent, nextReqMana);
-			newPercentToNextLevel = static_cast<long double>(manaSpent * 100) / nextReqMana;
-		} else {
-			newPercent = 0;
-			newPercentToNextLevel = 0;
-		}
-
-		if (newPercent != magLevelPercent) {
-			magLevelPercent = newPercent;
-			sendUpdate = true;
-		}
-
-		newSkillValue = magLevel;
-	} else {
-		uint64_t currReqTries = vocation->getReqSkillTries(skill, skills[skill].level);
-		uint64_t nextReqTries = vocation->getReqSkillTries(skill, skills[skill].level + 1);
-		if (currReqTries >= nextReqTries) {
-			return false;
-		}
-
-		oldSkillValue = skills[skill].level;
-		oldPercentToNextLevel = static_cast<long double>(skills[skill].tries * 100) / nextReqTries;
-
-		g_events->eventPlayerOnGainSkillTries(this, skill, tries);
-		uint32_t currSkillLevel = skills[skill].level;
-
-		while ((skills[skill].tries + tries) >= nextReqTries) {
-			tries -= nextReqTries - skills[skill].tries;
-
-			skills[skill].level++;
-			skills[skill].tries = 0;
-			skills[skill].percent = 0;
-
-			g_creatureEvents->playerAdvance(this, skill, (skills[skill].level - 1), skills[skill].level);
-
-			sendUpdate = true;
-			currReqTries = nextReqTries;
-			nextReqTries = vocation->getReqSkillTries(skill, skills[skill].level + 1);
-
-			if (currReqTries >= nextReqTries) {
-				tries = 0;
-				break;
-			}
-		}
-
-		skills[skill].tries += tries;
-
-		if (currSkillLevel != skills[skill].level) {
-			std::ostringstream ss;
-			ss << "You advanced to " << getSkillName(skill) << " level " << skills[skill].level << '.';
-			sendTextMessage(MESSAGE_EVENT_ADVANCE, ss.str());
-		}
-
-		uint8_t newPercent;
-		if (nextReqTries > currReqTries) {
-			newPercent = Player::getPercentLevel(skills[skill].tries, nextReqTries);
-			newPercentToNextLevel = static_cast<long double>(skills[skill].tries * 100) / nextReqTries;
-		} else {
-			newPercent = 0;
-			newPercentToNextLevel = 0;
-		}
-
-		if (skills[skill].percent != newPercent) {
-			skills[skill].percent = newPercent;
-			sendUpdate = true;
-		}
-
-		newSkillValue = skills[skill].level;
-	}
-
-	if (sendUpdate) {
-		sendSkills();
-	}
-
-	std::ostringstream ss;
-	ss << std::fixed << std::setprecision(2) << "Your " << ucwords(getSkillName(skill)) << " skill changed from level " << oldSkillValue << " (with " << oldPercentToNextLevel << "% progress towards level " << (oldSkillValue + 1) << ") to level " << newSkillValue << " (with " << newPercentToNextLevel << "% progress towards level " << (newSkillValue + 1) << ')';
-	sendTextMessage(MESSAGE_EVENT_ADVANCE, ss.str());
-	return sendUpdate;
 }
 
 bool Player::hasModalWindowOpen(uint32_t modalWindowId) const

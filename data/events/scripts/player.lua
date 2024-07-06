@@ -7,6 +7,7 @@ function Player:onLook(thing, position, distance)
 	if self:getGroup():getAccess() then
 		if thing:isItem() then
 			description = string.format("%s\nItem ID: %d", description, thing:getId())
+			description = string.format("%s\nClient ID: %d", description, ItemType(thing:getId()):getClientId())
 
 			local actionId = thing:getActionId()
 			if actionId ~= 0 then
@@ -34,9 +35,6 @@ function Player:onLook(thing, position, distance)
 			end
 		elseif thing:isCreature() then
 			local str = "%s\nHealth: %d / %d"
-			if thing:isPlayer() and thing:getMaxMana() > 0 then
-				str = string.format("%s, Mana: %d / %d", str, thing:getMana(), thing:getMaxMana())
-			end
 			description = string.format(str, description, thing:getHealth(), thing:getMaxHealth()) .. "."
 		end
 
@@ -59,9 +57,6 @@ function Player:onLookInBattleList(creature, distance)
 	local description = "You see " .. creature:getDescription(distance)
 	if self:getGroup():getAccess() then
 		local str = "%s\nHealth: %d / %d"
-		if creature:isPlayer() and creature:getMaxMana() > 0 then
-			str = string.format("%s, Mana: %d / %d", str, creature:getMana(), creature:getMaxMana())
-		end
 		description = string.format(str, description, creature:getHealth(), creature:getMaxHealth()) .. "."
 
 		local position = creature:getPosition()
@@ -92,14 +87,6 @@ function Player:onMoveItem(item, count, fromPosition, toPosition, fromCylinder, 
 
 	if item:getTopParent() == self and bit.band(toPosition.y, 0x40) == 0 then
 		local itemType, moveItem = ItemType(item:getId())
-		if bit.band(itemType:getSlotPosition(), SLOTP_TWO_HAND) ~= 0 and toPosition.y == CONST_SLOT_LEFT then
-			moveItem = self:getSlotItem(CONST_SLOT_RIGHT)
-		elseif itemType:getWeaponType() == WEAPON_SHIELD and toPosition.y == CONST_SLOT_RIGHT then
-			moveItem = self:getSlotItem(CONST_SLOT_LEFT)
-			if moveItem and bit.band(ItemType(moveItem:getId()):getSlotPosition(), SLOTP_TWO_HAND) == 0 then
-				return true
-			end
-		end
 
 		if moveItem then
 			local parent = item:getParent()
@@ -198,10 +185,6 @@ function Player:onTradeAccept(target, item, targetItem)
 	return true
 end
 
-local soulCondition = Condition(CONDITION_SOUL, CONDITIONID_DEFAULT)
-soulCondition:setTicks(4 * 60 * 1000)
-soulCondition:setParameter(CONDITION_PARAM_SOULGAIN, 1)
-
 local function useStamina(player)
 	local staminaMinutes = player:getStamina()
 	if staminaMinutes == 0 then
@@ -234,13 +217,6 @@ function Player:onGainExperience(source, exp, rawExp)
 		return exp
 	end
 
-	-- Soul regeneration
-	local vocation = self:getVocation()
-	if self:getSoul() < vocation:getMaxSoul() and exp >= self:getLevel() then
-		soulCondition:setParameter(CONDITION_PARAM_SOULTICKS, vocation:getSoulGainTicks() * 1000)
-		self:addCondition(soulCondition)
-	end
-
 	-- Apply experience stage multiplier
 	exp = exp * Game.getExperienceStage(self:getLevel())
 
@@ -268,8 +244,26 @@ function Player:onGainSkillTries(skill, tries)
 		return tries
 	end
 
-	if skill == SKILL_MAGLEVEL then
-		return tries * configManager.getNumber(configKeys.RATE_MAGIC)
-	end
 	return tries * configManager.getNumber(configKeys.RATE_SKILL)
+end
+
+function Player:onCatchPokemon(pokemonType, pokeballType, pokemon)
+end
+
+function Player:onDontCatchPokemon(pokemonType, pokeballType)
+end
+
+function Player:onTryCatchPokemon(pokemonType, pokeballType)
+end
+
+function Player:onFeed(creature, foodType)
+	return true
+end
+
+function Player:onFeedPokemon(pokemon, foodType)
+	return true
+end
+
+function Player:onFeedHimself(foodType)
+	return true
 end

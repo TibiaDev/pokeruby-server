@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="39"  name="Jigglypuff" nameDescription="a Jigglypuff" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="39" corpse="2848" />
+	<type first="normal" second="fairy" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2414" />
+	<icon charged="26427" discharged="26646" />
+	<genders>
+		<gender name="female" percentage="100" />
+	</genders>
+	<basestats>
+		<hp value= "115" />
+		<attack value="45" />
+		<defense value="20" />
+		<specialAttack value="45" />
+		<specialDefense value="25" />
+		<speed value="20" />
+	</basestats>
+	<evolutions>
+		<evolution to="wigglytuff" at="anytime" stone="8928" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

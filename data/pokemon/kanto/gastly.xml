@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="92"  name="Gastly" nameDescription="a Gastly" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="92" corpse="2909" />
+	<type first="ghost" second="poison" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2458" />
+	<icon charged="26487" discharged="26707" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "30" />
+		<attack value="35" />
+		<defense value="30" />
+		<specialAttack value="100" />
+		<specialDefense value="35" />
+		<speed value="80" />
+	</basestats>
+	<evolutions>
+		<evolution to="haunter" at="night" stone="8930" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />		
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

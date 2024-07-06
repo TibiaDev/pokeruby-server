@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +66,13 @@ bool BaseEvents::loadFromXml()
 
 		pugi::xml_attribute scriptAttribute = node.attribute("script");
 		if (scriptAttribute) {
-			std::string scriptFile = "scripts/" + std::string(scriptAttribute.as_string());
+			pugi::xml_attribute scriptPrefix = node.attribute(getScriptPrefixName().c_str());
+			std::string scriptFile;
+			if (scriptPrefix) {
+				scriptFile = "scripts/" + std::string(scriptPrefix.as_string()) + "/" + std::string(scriptAttribute.as_string());
+			} else {
+				scriptFile = "scripts/" + std::string(scriptAttribute.as_string());
+			}
 			success = event->checkScript(basePath, scriptsName, scriptFile) && event->loadScript(basePath + scriptFile);
 		} else {
 			success = event->loadFunction(node.attribute("function"));

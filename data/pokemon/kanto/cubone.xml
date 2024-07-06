@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="104"  name="Cubone" nameDescription="a Cubone" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="104" corpse="2922" />
+	<type first="ground" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2470" />
+	<icon charged="26576" discharged="26797" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "50" />
+		<attack value="50" />
+		<defense value="95" />
+		<specialAttack value="40" />
+		<specialDefense value="50" />
+		<speed value="35" />
+	</basestats>
+	<evolutions>
+		<evolution to="marowak" at="day" stone="8924" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

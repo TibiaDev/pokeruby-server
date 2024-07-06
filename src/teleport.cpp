@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,20 +78,29 @@ void Teleport::addThing(int32_t, Thing* thing)
 		return;
 	}
 
-	const MagicEffectClasses effect = Item::items[id].magicEffect;
+	const EffectClasses effect = Item::items[id].effect;
+	const SoundEffectClasses sound = Item::items[id].sound;
 
 	if (Creature* creature = thing->getCreature()) {
 		Position origPos = creature->getPosition();
 		g_game.internalCreatureTurn(creature, origPos.x > destPos.x ? DIRECTION_WEST : DIRECTION_EAST);
 		g_game.map.moveCreature(*creature, *destTile);
 		if (effect != CONST_ME_NONE) {
-			g_game.addMagicEffect(origPos, effect);
-			g_game.addMagicEffect(destTile->getPosition(), effect);
+			g_game.addEffect(origPos, effect);
+			g_game.addEffect(destTile->getPosition(), effect);
+		}
+		if (sound != CONST_SE_NONE) {
+			g_game.addSound(origPos, sound);
+			g_game.addSound(destTile->getPosition(), sound);
 		}
 	} else if (Item* item = thing->getItem()) {
 		if (effect != CONST_ME_NONE) {
-			g_game.addMagicEffect(destTile->getPosition(), effect);
-			g_game.addMagicEffect(item->getPosition(), effect);
+			g_game.addEffect(destTile->getPosition(), effect);
+			g_game.addEffect(item->getPosition(), effect);
+		}
+		if (sound != CONST_SE_NONE) {
+			g_game.addSound(destTile->getPosition(), sound);
+			g_game.addSound(item->getPosition(), sound);
 		}
 		g_game.internalMoveItem(getTile(), destTile, INDEX_WHEREEVER, item, item->getItemCount(), nullptr);
 	}

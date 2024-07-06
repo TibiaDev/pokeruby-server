@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,7 +47,6 @@ void Party::disband()
 	currentLeader->sendClosePrivate(CHANNEL_PARTY);
 	g_game.updatePlayerShield(currentLeader);
 	g_game.updatePlayerHelpers(*currentLeader);
-	currentLeader->sendCreatureSkull(currentLeader);
 	currentLeader->sendTextMessage(MESSAGE_INFO_DESCR, "Your party has been disbanded.");
 
 	for (Player* invitee : inviteList) {
@@ -63,13 +63,6 @@ void Party::disband()
 
 	for (Player* member : memberList) {
 		g_game.updatePlayerShield(member);
-
-		for (Player* otherMember : memberList) {
-			otherMember->sendCreatureSkull(member);
-		}
-
-		member->sendCreatureSkull(currentLeader);
-		currentLeader->sendCreatureSkull(member);
 		g_game.updatePlayerHelpers(*member);
 	}
 	memberList.clear();
@@ -115,13 +108,10 @@ bool Party::leaveParty(Player* player)
 	g_game.updatePlayerHelpers(*player);
 
 	for (Player* member : memberList) {
-		member->sendCreatureSkull(player);
 		player->sendPlayerPartyIcons(member);
 		g_game.updatePlayerHelpers(*member);
 	}
 
-	leader->sendCreatureSkull(player);
-	player->sendCreatureSkull(player);
 	player->sendPlayerPartyIcons(leader);
 
 	player->sendTextMessage(MESSAGE_INFO_DESCR, "You have left the party.");
@@ -204,12 +194,9 @@ bool Party::joinParty(Player& player)
 	g_game.updatePlayerShield(&player);
 
 	for (Player* member : memberList) {
-		member->sendCreatureSkull(&player);
 		player.sendPlayerPartyIcons(member);
 	}
 
-	player.sendCreatureSkull(&player);
-	leader->sendCreatureSkull(&player);
 	player.sendPlayerPartyIcons(leader);
 
 	memberList.push_back(&player);
@@ -282,7 +269,6 @@ bool Party::invitePlayer(Player& player)
 	if (empty()) {
 		ss << " Open the party channel to communicate with your members.";
 		g_game.updatePlayerShield(leader);
-		leader->sendCreatureSkull(leader);
 	}
 
 	leader->sendTextMessage(MESSAGE_INFO_DESCR, ss.str());
@@ -360,21 +346,21 @@ void Party::updateSharedExperience()
 
 void Party::updateSharedExperienceBonus()
 {
-	std::set<uint32_t> vocationIds;
+	std::set<uint32_t> professionIds;
 
-	uint32_t vocationId = leader->getVocation()->getFromVocation();
-	if (vocationId != VOCATION_NONE) {
-		vocationIds.insert(vocationId);
+	uint32_t professionId = leader->getProfession()->getFromProfession();
+	if (professionId != PROFESSION_NONE) {
+		professionIds.insert(professionId);
 	}
 
 	for (const Player* member : memberList) {
-		vocationId = member->getVocation()->getFromVocation();
-		if (vocationId != VOCATION_NONE) {
-			vocationIds.insert(vocationId);
+		professionId = member->getProfession()->getFromProfession();
+		if (professionId != PROFESSION_NONE) {
+			professionIds.insert(professionId);
 		}
 	}
 
-	size_t size = vocationIds.size();
+	size_t size = professionIds.size();
 	sharedExpBonus = std::max(0.2, (size * (5 * (size - 1) + 10)) / 100.);
 }
 

@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,14 +65,14 @@ std::string convertIPToString(uint32_t ip);
 
 void trimString(std::string& str);
 
-MagicEffectClasses getMagicEffect(const std::string& strValue);
+EffectClasses getEffect(const std::string& strValue);
+SoundEffectClasses getSoundEffect(const std::string& strValue);
 ShootType_t getShootType(const std::string& strValue);
-Ammo_t getAmmoType(const std::string& strValue);
-WeaponAction_t getWeaponAction(const std::string& strValue);
-Skulls_t getSkullType(const std::string& strValue);
+Genders_t getGenderType(const std::string& strValue);
 std::string getCombatName(CombatType_t combatType);
 
-std::string getSpecialSkillName(uint8_t skillid);
+PokemonType_t getPokemonElementType(const std::string& strValue);
+
 std::string getSkillName(uint8_t skillid);
 
 uint32_t adlerChecksum(const uint8_t* data, size_t length);
@@ -80,10 +81,11 @@ std::string ucfirst(std::string str);
 std::string ucwords(std::string str);
 bool booleanString(const std::string& str);
 
-std::string getWeaponName(WeaponType_t weaponType);
-
 size_t combatTypeToIndex(CombatType_t combatType);
 CombatType_t indexToCombatType(size_t v);
+
+CombatType_t pokemonTypeToCombatType(PokemonType_t pokemonType);
+PokemonType_t combatTypeToPokemonType(CombatType_t combatType);
 
 uint8_t serverFluidToClient(uint8_t serverFluid);
 uint8_t clientFluidToServer(uint8_t clientFluid);
@@ -91,6 +93,12 @@ uint8_t clientFluidToServer(uint8_t clientFluid);
 itemAttrTypes stringToItemAttribute(const std::string& str);
 
 const char* getReturnMessage(ReturnValue value);
+const char* getCallPokemonMessage(CallPokemon value);
+const char* getCallbackPokemonMessage(CallbackPokemon value);
+
+uint16_t daysUntilTheEnd(time_t start, time_t end);
+
+std::string capitalizeString(std::string name);
 
 int64_t OTSYS_TIME();
 

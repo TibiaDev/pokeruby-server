@@ -11,7 +11,7 @@ function onStepIn(creature, item, position, fromPosition)
 		return true
 	end
 
-	if creature:isMonster() then
+	if creature:isPokemon() then
 		doTargetCombatHealth(0, creature, trap.type or COMBAT_PHYSICALDAMAGE, trap.damage[1], trap.damage[2], CONST_ME_NONE)
 	end
 
@@ -30,7 +30,7 @@ function onRemoveItem(item, tile, position)
 	local itemPosition = item:getPosition()
 	if itemPosition:getDistance(position) > 0 then
 		item:transform(item.itemid - 1)
-		itemPosition:sendMagicEffect(CONST_ME_POFF)
+		itemPosition:sendEffect(CONST_ME_POFF)
 	end
 	return true
 end

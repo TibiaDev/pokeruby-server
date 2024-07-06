@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +22,7 @@
 
 #include "tools.h"
 #include "configmanager.h"
+#include "boost/date_time/posix_time/posix_time.hpp"
 
 extern ConfigManager g_config;
 
@@ -497,214 +499,268 @@ Direction getDirectionTo(const Position& from, const Position& to)
 	return dir;
 }
 
-using MagicEffectNames = std::unordered_map<std::string, MagicEffectClasses>;
+using EffectNames = std::unordered_map<std::string, EffectClasses>;
+using SoundEffectNames = std::unordered_map<std::string, SoundEffectClasses>;
 using ShootTypeNames = std::unordered_map<std::string, ShootType_t>;
 using CombatTypeNames = std::unordered_map<CombatType_t, std::string, std::hash<int32_t>>;
-using AmmoTypeNames = std::unordered_map<std::string, Ammo_t>;
-using WeaponActionNames = std::unordered_map<std::string, WeaponAction_t>;
-using SkullNames = std::unordered_map<std::string, Skulls_t>;
+using GenderNames = std::unordered_map<std::string, Genders_t>;
+using PokemonTypeNames = std::unordered_map<std::string, PokemonType_t>;
 
-MagicEffectNames magicEffectNames = {
-	{"redspark",		CONST_ME_DRAWBLOOD},
-	{"bluebubble",		CONST_ME_LOSEENERGY},
-	{"poff",		CONST_ME_POFF},
-	{"yellowspark",		CONST_ME_BLOCKHIT},
-	{"explosionarea",	CONST_ME_EXPLOSIONAREA},
-	{"explosion",		CONST_ME_EXPLOSIONHIT},
-	{"firearea",		CONST_ME_FIREAREA},
-	{"yellowbubble",	CONST_ME_YELLOW_RINGS},
-	{"greenbubble",		CONST_ME_GREEN_RINGS},
-	{"blackspark",		CONST_ME_HITAREA},
-	{"teleport",		CONST_ME_TELEPORT},
-	{"energy",		CONST_ME_ENERGYHIT},
-	{"blueshimmer",		CONST_ME_MAGIC_BLUE},
-	{"redshimmer",		CONST_ME_MAGIC_RED},
-	{"greenshimmer",	CONST_ME_MAGIC_GREEN},
-	{"fire",		CONST_ME_HITBYFIRE},
-	{"greenspark",		CONST_ME_HITBYPOISON},
-	{"mortarea",		CONST_ME_MORTAREA},
-	{"greennote",		CONST_ME_SOUND_GREEN},
-	{"rednote",		CONST_ME_SOUND_RED},
-	{"poison",		CONST_ME_POISONAREA},
-	{"yellownote",		CONST_ME_SOUND_YELLOW},
-	{"purplenote",		CONST_ME_SOUND_PURPLE},
-	{"bluenote",		CONST_ME_SOUND_BLUE},
-	{"whitenote",		CONST_ME_SOUND_WHITE},
-	{"bubbles",		CONST_ME_BUBBLES},
-	{"dice",		CONST_ME_CRAPS},
-	{"giftwraps",		CONST_ME_GIFT_WRAPS},
-	{"yellowfirework",	CONST_ME_FIREWORK_YELLOW},
-	{"redfirework",		CONST_ME_FIREWORK_RED},
-	{"bluefirework",	CONST_ME_FIREWORK_BLUE},
-	{"stun",		CONST_ME_STUN},
-	{"sleep",		CONST_ME_SLEEP},
-	{"watercreature",	CONST_ME_WATERCREATURE},
-	{"groundshaker",	CONST_ME_GROUNDSHAKER},
-	{"hearts",		CONST_ME_HEARTS},
-	{"fireattack",		CONST_ME_FIREATTACK},
-	{"energyarea",		CONST_ME_ENERGYAREA},
-	{"smallclouds",		CONST_ME_SMALLCLOUDS},
-	{"holydamage",		CONST_ME_HOLYDAMAGE},
-	{"bigclouds",		CONST_ME_BIGCLOUDS},
-	{"icearea",		CONST_ME_ICEAREA},
-	{"icetornado",		CONST_ME_ICETORNADO},
-	{"iceattack",		CONST_ME_ICEATTACK},
-	{"stones",		CONST_ME_STONES},
-	{"smallplants",		CONST_ME_SMALLPLANTS},
-	{"carniphila",		CONST_ME_CARNIPHILA},
-	{"purpleenergy",	CONST_ME_PURPLEENERGY},
-	{"yellowenergy",	CONST_ME_YELLOWENERGY},
-	{"holyarea",		CONST_ME_HOLYAREA},
-	{"bigplants",		CONST_ME_BIGPLANTS},
-	{"cake",		CONST_ME_CAKE},
-	{"giantice",		CONST_ME_GIANTICE},
-	{"watersplash",		CONST_ME_WATERSPLASH},
-	{"plantattack",		CONST_ME_PLANTATTACK},
-	{"tutorialarrow",	CONST_ME_TUTORIALARROW},
-	{"tutorialsquare",	CONST_ME_TUTORIALSQUARE},
+EffectNames effectNames = {
+	{"redspark",			CONST_ME_DRAWBLOOD},
+	{"bluebubble",			CONST_ME_LOSEENERGY},
+	{"poff",				CONST_ME_POFF},
+	{"yellowspark",			CONST_ME_BLOCKHIT},
+	{"explosionarea",		CONST_ME_EXPLOSIONAREA},
+	{"explosion",			CONST_ME_EXPLOSIONHIT},
+	{"firearea",			CONST_ME_FIREAREA},
+	{"yellowbubble",		CONST_ME_YELLOW_RINGS},
+	{"greenbubble",			CONST_ME_GREEN_RINGS},
+	{"blackspark",			CONST_ME_HITAREA},
+	{"teleport",			CONST_ME_TELEPORT},
+	{"energy",				CONST_ME_ENERGYHIT},
+	{"blueshimmer",			CONST_ME_MAGIC_BLUE},
+	{"redshimmer",			CONST_ME_MAGIC_RED},
+	{"greenshimmer",		CONST_ME_MAGIC_GREEN},
+	{"fire",				CONST_ME_HITBYFIRE},
+	{"greenspark",			CONST_ME_HITBYPOISON},
+	{"mortarea",			CONST_ME_MORTAREA},
+	{"greennote",			CONST_ME_SOUND_GREEN},
+	{"rednote",				CONST_ME_SOUND_RED},
+	{"poison",				CONST_ME_POISONAREA},
+	{"yellownote",			CONST_ME_SOUND_YELLOW},
+	{"purplenote",			CONST_ME_SOUND_PURPLE},
+	{"bluenote",			CONST_ME_SOUND_BLUE},
+	{"whitenote",			CONST_ME_SOUND_WHITE},
+	{"bubbles",				CONST_ME_BUBBLES},
+	{"dice",				CONST_ME_CRAPS},
+	{"giftwraps",			CONST_ME_GIFT_WRAPS},
+	{"yellowfirework",		CONST_ME_FIREWORK_YELLOW},
+	{"redfirework",			CONST_ME_FIREWORK_RED},
+	{"bluefirework",		CONST_ME_FIREWORK_BLUE},
+	{"stun",				CONST_ME_STUN},
+	{"sleep",				CONST_ME_SLEEP},
+	{"watercreature",		CONST_ME_WATERCREATURE},
+	{"groundshaker",		CONST_ME_GROUNDSHAKER},
+	{"hearts",				CONST_ME_HEARTS},
+	{"fireattack",			CONST_ME_FIREATTACK},
+	{"energyarea",			CONST_ME_ENERGYAREA},
+	{"smallclouds",			CONST_ME_SMALLCLOUDS},
+	{"holydamage",			CONST_ME_HOLYDAMAGE},
+	{"bigclouds",			CONST_ME_BIGCLOUDS},
+	{"icearea",				CONST_ME_ICEAREA},
+	{"icetornado",			CONST_ME_ICETORNADO},
+	{"iceattack",			CONST_ME_ICEATTACK},
+	{"stones",				CONST_ME_STONES},
+	{"smallplants",			CONST_ME_SMALLPLANTS},
+	{"carniphila",			CONST_ME_CARNIPHILA},
+	{"purpleenergy",		CONST_ME_PURPLEENERGY},
+	{"yellowenergy",		CONST_ME_YELLOWENERGY},
+	{"holyarea",			CONST_ME_HOLYAREA},
+	{"bigplants",			CONST_ME_BIGPLANTS},
+	{"cake",				CONST_ME_CAKE},
+	{"giantice",			CONST_ME_GIANTICE},
+	{"watersplash",			CONST_ME_WATERSPLASH},
+	{"plantattack",			CONST_ME_PLANTATTACK},
+	{"tutorialarrow",		CONST_ME_TUTORIALARROW},
+	{"tutorialsquare",		CONST_ME_TUTORIALSQUARE},
 	{"mirrorhorizontal",	CONST_ME_MIRRORHORIZONTAL},
-	{"mirrorvertical",	CONST_ME_MIRRORVERTICAL},
-	{"skullhorizontal",	CONST_ME_SKULLHORIZONTAL},
-	{"skullvertical",	CONST_ME_SKULLVERTICAL},
-	{"assassin",		CONST_ME_ASSASSIN},
-	{"stepshorizontal",	CONST_ME_STEPSHORIZONTAL},
-	{"bloodysteps",		CONST_ME_BLOODYSTEPS},
-	{"stepsvertical",	CONST_ME_STEPSVERTICAL},
-	{"yalaharighost",	CONST_ME_YALAHARIGHOST},
-	{"bats",		CONST_ME_BATS},
-	{"smoke",		CONST_ME_SMOKE},
-	{"insects",		CONST_ME_INSECTS},
-	{"dragonhead",		CONST_ME_DRAGONHEAD},
-	{"orcshaman",		CONST_ME_ORCSHAMAN},
-	{"orcshamanfire",	CONST_ME_ORCSHAMAN_FIRE},
-	{"thunder",		CONST_ME_THUNDER},
-	{"ferumbras",		CONST_ME_FERUMBRAS},
+	{"mirrorvertical",		CONST_ME_MIRRORVERTICAL},
+	{"skullhorizontal",		CONST_ME_SKULLHORIZONTAL},
+	{"skullvertical",		CONST_ME_SKULLVERTICAL},
+	{"stepshorizontal",		CONST_ME_STEPSHORIZONTAL},
+	{"bloodysteps",			CONST_ME_BLOODYSTEPS},
+	{"stepsvertical",		CONST_ME_STEPSVERTICAL},
+	{"yalaharighost",		CONST_ME_YALAHARIGHOST},
+	{"bats",				CONST_ME_BATS},
+	{"smoke",				CONST_ME_SMOKE},
+	{"insects",				CONST_ME_INSECTS},
+	{"dragonhead",			CONST_ME_DRAGONHEAD},
+	{"thunder",				CONST_ME_THUNDER},
 	{"confettihorizontal",	CONST_ME_CONFETTI_HORIZONTAL},
 	{"confettivertical",	CONST_ME_CONFETTI_VERTICAL},
-	{"blacksmoke",		CONST_ME_BLACKSMOKE},
-	{"redsmoke",		CONST_ME_REDSMOKE},
-	{"yellowsmoke",		CONST_ME_YELLOWSMOKE},
-	{"greensmoke",		CONST_ME_GREENSMOKE},
-	{"purplesmoke",		CONST_ME_PURPLESMOKE},
+	{"blacksmoke",			CONST_ME_BLACKSMOKE},
+	{"redsmoke",			CONST_ME_REDSMOKE},
+	{"yellowsmoke",			CONST_ME_YELLOWSMOKE},
+	{"greensmoke",			CONST_ME_GREENSMOKE},
+	{"purplesmoke",			CONST_ME_PURPLESMOKE},
+};
+
+SoundEffectNames soundEffectNames = {
+	{"catchsuccess",				CONST_SE_CATCHSUCCESS},
+	{"saffronmusic",				CONST_SE_SAFFRONMUSIC},
+	{"pokemonlowhp",				CONST_SE_POKEMONLOWHP},
+	{"vinewhip",					CONST_SE_VINEWHIP},
+	{"craps",						CONST_SE_CRAPS},
+	{"teleport",					CONST_SE_TELEPORT},
+	{"pokemoncenter",				CONST_SE_POKEMONCENTER},
+	{"levelup",						CONST_SE_LEVELUP},
+	{"pokemonhealed",				CONST_SE_POKEMONHEALED},
+	{"newbarktown",					CONST_SE_NEWBARKTOWN},
+	{"lyra",						CONST_SE_LYRA},
+	{"elmpokemonlab",				CONST_SE_ELMPOKEMONLAB},
+	{"obtainedakeyitem",			CONST_SE_OBTAINEDAKEYITEM},
+	{"route29",						CONST_SE_ROUTE29},
+	{"battlewildjohto",				CONST_SE_BATTLEWILDJOHTO},
+	{"victorywildpokemon",			CONST_SE_VICTORYWILDPOKEMON},
+	{"cherrygrovecity",				CONST_SE_CHERRYGROVECITY},
+	{"battletrainerjohto",			CONST_SE_BATTLETRAINERJOHTO},
+	{"victorytrainerjohto",			CONST_SE_VICTORYTRAINERJOHTO},
+	{"route30",						CONST_SE_ROUTE30},
+	{"pokedexevaluationnogood",		CONST_SE_POKEDEXEVALUATIONNOGOOD},
+	{"violetcity",					CONST_SE_VIOLETCITY},
+	{"sprouttower",					CONST_SE_SPROUTTOWER},
+	{"pokemart",					CONST_SE_POKEMART},
+	{"receivedpokemonegg",			CONST_SE_RECEIVEDPOKEMONEGG},
+	{"kimonogirl",					CONST_SE_KIMONOGIRL},
+	{"unioncave",					CONST_SE_UNIONCAVE},
+	{"obtainedaitem",				CONST_SE_OBTAINEDAITEM},
+	{"ruinsofalph",					CONST_SE_RUINSOFALPH},
+	{"pokegearradiounown",			CONST_SE_POKEGEARRADIOUNOWN},
+	{"pokedexevaluationyouareony",	CONST_SE_POKEDEXEVALUATIONYOUAREONY},
+	{"azaleatown",					CONST_SE_AZALEATOWN},
+	{"battleteamrocket",			CONST_SE_BATTLETEAMROCKET},
+	{"route34",						CONST_SE_ROUTE34},
+	{"arivalappears",				CONST_SE_ARIVALAPPEARS},
+	{"battlerival",					CONST_SE_BATTLERIVAL},
+	{"evolution",					CONST_SE_EVOLUTION},
+	{"congratulations",				CONST_SE_CONGRATULATIONS},
+	{"goldenrodcity",				CONST_SE_GOLDENRODCITY},
+	{"battlegymleaderjohto",		CONST_SE_BATTLEGYMLEADERJOHTO},
+	{"victorygymleader",			CONST_SE_VICTORYGYMLEADER},
+	{"receivedgymbadge",			CONST_SE_RECEIVEDGYMBADGE},
+	{"pokegearradiopokemonchannel",	CONST_SE_POKEGEARRADIOPOKEMONCHANNEL},
+	{"pokegearradiobuenapassword",	CONST_SE_POKEGEARRADIOBUENAPASSWORD},
+	{"receivedtm",					CONST_SE_RECEIVEDTM},
+	{"goldenrodgamecorner",			CONST_SE_GOLDENRODGAMECORNER},
+	{"youareawinner",				CONST_SE_YOUAREAWINNER},
+	{"obtainedanaccessory",			CONST_SE_OBTAINEDANACCESSORY},
+	{"globalterminal",				CONST_SE_GLOBALTERMINAL},
+	{"waterdrop",					CONST_SE_WATERDROP},
 };
 
 ShootTypeNames shootTypeNames = {
-	{"spear",		CONST_ANI_SPEAR},
-	{"bolt",		CONST_ANI_BOLT},
-	{"arrow",		CONST_ANI_ARROW},
-	{"fire",		CONST_ANI_FIRE},
-	{"energy",		CONST_ANI_ENERGY},
-	{"poisonarrow",		CONST_ANI_POISONARROW},
-	{"burstarrow",		CONST_ANI_BURSTARROW},
-	{"throwingstar",	CONST_ANI_THROWINGSTAR},
-	{"throwingknife",	CONST_ANI_THROWINGKNIFE},
-	{"smallstone",		CONST_ANI_SMALLSTONE},
-	{"death",		CONST_ANI_DEATH},
-	{"largerock",		CONST_ANI_LARGEROCK},
-	{"snowball",		CONST_ANI_SNOWBALL},
-	{"powerbolt",		CONST_ANI_POWERBOLT},
-	{"poison",		CONST_ANI_POISON},
-	{"infernalbolt",	CONST_ANI_INFERNALBOLT},
-	{"huntingspear",	CONST_ANI_HUNTINGSPEAR},
-	{"enchantedspear",	CONST_ANI_ENCHANTEDSPEAR},
-	{"redstar",		CONST_ANI_REDSTAR},
-	{"greenstar",		CONST_ANI_GREENSTAR},
-	{"royalspear",		CONST_ANI_ROYALSPEAR},
-	{"sniperarrow",		CONST_ANI_SNIPERARROW},
-	{"onyxarrow",		CONST_ANI_ONYXARROW},
-	{"piercingbolt",	CONST_ANI_PIERCINGBOLT},
-	{"whirlwindsword",	CONST_ANI_WHIRLWINDSWORD},
-	{"whirlwindaxe",	CONST_ANI_WHIRLWINDAXE},
-	{"whirlwindclub",	CONST_ANI_WHIRLWINDCLUB},
-	{"etherealspear",	CONST_ANI_ETHEREALSPEAR},
-	{"ice",			CONST_ANI_ICE},
-	{"earth",		CONST_ANI_EARTH},
-	{"holy",		CONST_ANI_HOLY},
-	{"suddendeath",		CONST_ANI_SUDDENDEATH},
-	{"flasharrow",		CONST_ANI_FLASHARROW},
-	{"flammingarrow",	CONST_ANI_FLAMMINGARROW},
-	{"shiverarrow",		CONST_ANI_SHIVERARROW},
-	{"energyball",		CONST_ANI_ENERGYBALL},
-	{"smallice",		CONST_ANI_SMALLICE},
-	{"smallholy",		CONST_ANI_SMALLHOLY},
-	{"smallearth",		CONST_ANI_SMALLEARTH},
-	{"eartharrow",		CONST_ANI_EARTHARROW},
-	{"explosion",		CONST_ANI_EXPLOSION},
-	{"cake",		CONST_ANI_CAKE},
-	{"tarsalarrow",		CONST_ANI_TARSALARROW},
-	{"vortexbolt",		CONST_ANI_VORTEXBOLT},
-	{"prismaticbolt",	CONST_ANI_PRISMATICBOLT},
+	{"pokeball",			CONST_ANI_POKEBALL},
+	{"greatball",			CONST_ANI_GREATBALL},
+	{"ultraball",			CONST_ANI_ULTRABALL},
+	{"saffariball",			CONST_ANI_SAFFARIBALL},
+	{"masterball",			CONST_ANI_MASTERBALL},
+	{"poisonarrow",			CONST_ANI_POISONARROW},
+	{"burstarrow",			CONST_ANI_BURSTARROW},
+	{"throwingstar",		CONST_ANI_THROWINGSTAR},
+	{"throwingknife",		CONST_ANI_THROWINGKNIFE},
+	{"smallstone",			CONST_ANI_SMALLSTONE},
+	{"death",				CONST_ANI_DEATH},
+	{"largerock",			CONST_ANI_LARGEROCK},
+	{"snowball",			CONST_ANI_SNOWBALL},
+	{"powerbolt",			CONST_ANI_POWERBOLT},
+	{"poison",				CONST_ANI_POISON},
+	{"infernalbolt",		CONST_ANI_INFERNALBOLT},
+	{"huntingspear",		CONST_ANI_HUNTINGSPEAR},
+	{"enchantedspear",		CONST_ANI_ENCHANTEDSPEAR},
+	{"redstar",				CONST_ANI_REDSTAR},
+	{"greenstar",			CONST_ANI_GREENSTAR},
+	{"royalspear",			CONST_ANI_ROYALSPEAR},
+	{"sniperarrow",			CONST_ANI_SNIPERARROW},
+	{"onyxarrow",			CONST_ANI_ONYXARROW},
+	{"piercingbolt",		CONST_ANI_PIERCINGBOLT},
+	{"whirlwindsword",		CONST_ANI_WHIRLWINDSWORD},
+	{"whirlwindaxe",		CONST_ANI_WHIRLWINDAXE},
+	{"whirlwindclub",		CONST_ANI_WHIRLWINDCLUB},
+	{"etherealspear",		CONST_ANI_ETHEREALSPEAR},
+	{"ice",					CONST_ANI_ICE},
+	{"earth",				CONST_ANI_EARTH},
+	{"holy",				CONST_ANI_HOLY},
+	{"suddendeath",			CONST_ANI_SUDDENDEATH},
+	{"flasharrow",			CONST_ANI_FLASHARROW},
+	{"flammingarrow",		CONST_ANI_FLAMMINGARROW},
+	{"shiverarrow",			CONST_ANI_SHIVERARROW},
+	{"energyball",			CONST_ANI_ENERGYBALL},
+	{"smallice",			CONST_ANI_SMALLICE},
+	{"smallholy",			CONST_ANI_SMALLHOLY},
+	{"smallearth",			CONST_ANI_SMALLEARTH},
+	{"eartharrow",			CONST_ANI_EARTHARROW},
+	{"explosion",			CONST_ANI_EXPLOSION},
+	{"cake",				CONST_ANI_CAKE},
+	{"tarsalarrow",			CONST_ANI_TARSALARROW},
+	{"vortexbolt",			CONST_ANI_VORTEXBOLT},
+	{"prismaticbolt",		CONST_ANI_PRISMATICBOLT},
 	{"crystallinearrow",	CONST_ANI_CRYSTALLINEARROW},
-	{"drillbolt",		CONST_ANI_DRILLBOLT},
-	{"envenomedarrow",	CONST_ANI_ENVENOMEDARROW},
-	{"gloothspear",		CONST_ANI_GLOOTHSPEAR},
-	{"simplearrow",		CONST_ANI_SIMPLEARROW},
+	{"drillbolt",			CONST_ANI_DRILLBOLT},
+	{"envenomedarrow",		CONST_ANI_ENVENOMEDARROW},
+	{"gloothspear",			CONST_ANI_GLOOTHSPEAR},
+	{"simplearrow",			CONST_ANI_SIMPLEARROW},
 };
 
 CombatTypeNames combatTypeNames = {
-	{COMBAT_PHYSICALDAMAGE, 	"physical"},
-	{COMBAT_ENERGYDAMAGE, 		"energy"},
-	{COMBAT_EARTHDAMAGE, 		"earth"},
-	{COMBAT_FIREDAMAGE, 		"fire"},
-	{COMBAT_UNDEFINEDDAMAGE, 	"undefined"},
-	{COMBAT_LIFEDRAIN, 		"lifedrain"},
-	{COMBAT_MANADRAIN, 		"manadrain"},
-	{COMBAT_HEALING, 		"healing"},
-	{COMBAT_DROWNDAMAGE, 		"drown"},
-	{COMBAT_ICEDAMAGE, 		"ice"},
-	{COMBAT_HOLYDAMAGE, 		"holy"},
-	{COMBAT_DEATHDAMAGE, 		"death"},
+	{COMBAT_PHYSICALDAMAGE, 		"physical"},
+	{COMBAT_ELECTRICDAMAGE, 		"electric"},
+	{COMBAT_GRASSDAMAGE, 			"grass"},
+	{COMBAT_FIREDAMAGE, 			"fire"},
+	{COMBAT_LIFEDRAIN, 				"lifedrain"},
+	{COMBAT_HEALING, 				"healing"},
+	{COMBAT_WATERDAMAGE, 			"water"},
+	{COMBAT_ICEDAMAGE, 				"ice"},
+	{COMBAT_BUGDAMAGE, 				"bug"},
+	{COMBAT_DARKDAMAGE, 			"dark"},
+	{COMBAT_NORMALDAMAGE,           "normal"},
+	{COMBAT_FIGHTINGDAMAGE,         "fighting"},
+	{COMBAT_FLYINGDAMAGE,           "flying"},
+	{COMBAT_POISONDAMAGE,           "poison"},
+	{COMBAT_GROUNDDAMAGE,           "ground"},
+	{COMBAT_PSYCHICDAMAGE,          "psychic"},
+	{COMBAT_ROCKDAMAGE,             "rock"},
+	{COMBAT_GHOSTDAMAGE,            "ghost"},
+	{COMBAT_STEELDAMAGE,            "steel"},
+	{COMBAT_FAIRYDAMAGE,            "fairy"},
+	{COMBAT_DRAGONDAMAGE,           "dragon"},
 };
 
-AmmoTypeNames ammoTypeNames = {
-	{"spear",		AMMO_SPEAR},
-	{"bolt",		AMMO_BOLT},
-	{"arrow",		AMMO_ARROW},
-	{"poisonarrow",		AMMO_ARROW},
-	{"burstarrow",		AMMO_ARROW},
-	{"throwingstar",	AMMO_THROWINGSTAR},
-	{"throwingknife",	AMMO_THROWINGKNIFE},
-	{"smallstone",		AMMO_STONE},
-	{"largerock",		AMMO_STONE},
-	{"snowball",		AMMO_SNOWBALL},
-	{"powerbolt",		AMMO_BOLT},
-	{"infernalbolt",	AMMO_BOLT},
-	{"huntingspear",	AMMO_SPEAR},
-	{"enchantedspear",	AMMO_SPEAR},
-	{"royalspear",		AMMO_SPEAR},
-	{"sniperarrow",		AMMO_ARROW},
-	{"onyxarrow",		AMMO_ARROW},
-	{"piercingbolt",	AMMO_BOLT},
-	{"etherealspear",	AMMO_SPEAR},
-	{"flasharrow",		AMMO_ARROW},
-	{"flammingarrow",	AMMO_ARROW},
-	{"shiverarrow",		AMMO_ARROW},
-	{"eartharrow",		AMMO_ARROW},
+GenderNames genderNames = {
+	{"none",		GENDER_NONE},
+	{"male",		GENDER_MALE},
+	{"female",		GENDER_FEMALE},
+	{"undefined",	GENDER_UNDEFINED},
 };
 
-WeaponActionNames weaponActionNames = {
-	{"move",		WEAPONACTION_MOVE},
-	{"removecharge",	WEAPONACTION_REMOVECHARGE},
-	{"removecount",		WEAPONACTION_REMOVECOUNT},
+PokemonTypeNames pokemonTypes = {
+	{"none",		TYPE_NONE},
+	{"normal",		TYPE_NORMAL},
+	{"fire",		TYPE_FIRE},
+	{"fighting",	TYPE_FIGHTING},
+	{"water",		TYPE_WATER},
+	{"flying",		TYPE_FLYING},
+	{"grass",		TYPE_GRASS},
+	{"electric",	TYPE_ELECTRIC},
+	{"poison",		TYPE_POISON},
+	{"ground",		TYPE_GROUND},
+	{"psychic",		TYPE_PSYCHIC},
+	{"rock",		TYPE_ROCK},
+	{"ice",			TYPE_ICE},
+	{"bug",			TYPE_BUG},
+	{"dragon",		TYPE_DRAGON},
+	{"ghost",		TYPE_GHOST},
+	{"dark",		TYPE_DARK},
+	{"steel",		TYPE_STEEL},
+	{"fairy",		TYPE_FAIRY},
 };
 
-SkullNames skullNames = {
-	{"none",	SKULL_NONE},
-	{"yellow",	SKULL_YELLOW},
-	{"green",	SKULL_GREEN},
-	{"white",	SKULL_WHITE},
-	{"red",		SKULL_RED},
-	{"black",	SKULL_BLACK},
-	{"orange",	SKULL_ORANGE},
-};
-
-MagicEffectClasses getMagicEffect(const std::string& strValue)
+EffectClasses getEffect(const std::string& strValue)
 {
-	auto magicEffect = magicEffectNames.find(strValue);
-	if (magicEffect != magicEffectNames.end()) {
-		return magicEffect->second;
+	auto effect = effectNames.find(strValue);
+	if (effect != effectNames.end()) {
+		return effect->second;
 	}
 	return CONST_ME_NONE;
+}
+
+SoundEffectClasses getSoundEffect(const std::string& strValue)
+{
+	auto soundEffect = soundEffectNames.find(strValue);
+	if (soundEffect != soundEffectNames.end()) {
+		return soundEffect->second;
+	}
+	return CONST_SE_NONE;
 }
 
 ShootType_t getShootType(const std::string& strValue)
@@ -725,57 +781,22 @@ std::string getCombatName(CombatType_t combatType)
 	return "unknown";
 }
 
-Ammo_t getAmmoType(const std::string& strValue)
+Genders_t getGenderType(const std::string& strValue)
 {
-	auto ammoType = ammoTypeNames.find(strValue);
-	if (ammoType != ammoTypeNames.end()) {
-		return ammoType->second;
+	auto genderType = genderNames.find(strValue);
+	if (genderType != genderNames.end()) {
+		return genderType->second;
 	}
-	return AMMO_NONE;
+	return GENDER_NONE;
 }
 
-WeaponAction_t getWeaponAction(const std::string& strValue)
+PokemonType_t getPokemonElementType(const std::string& strValue)
 {
-	auto weaponAction = weaponActionNames.find(strValue);
-	if (weaponAction != weaponActionNames.end()) {
-		return weaponAction->second;
+	auto pokemonType = pokemonTypes.find(strValue);
+	if (pokemonType != pokemonTypes.end()) {
+		return pokemonType->second;
 	}
-	return WEAPONACTION_NONE;
-}
-
-Skulls_t getSkullType(const std::string& strValue)
-{
-	auto skullType = skullNames.find(strValue);
-	if (skullType != skullNames.end()) {
-		return skullType->second;
-	}
-	return SKULL_NONE;
-}
-
-std::string getSpecialSkillName(uint8_t skillid)
-{
-	switch (skillid) {
-		case SPECIALSKILL_CRITICALHITCHANCE:
-			return "critical hit chance";
-
-		case SPECIALSKILL_CRITICALHITAMOUNT:
-			return "critical extra damage";
-
-		case SPECIALSKILL_HITPOINTSLEECHCHANCE:
-			return "hitpoints leech chance";
-
-		case SPECIALSKILL_HITPOINTSLEECHAMOUNT:
-			return "hitpoints leech amount";
-
-		case SPECIALSKILL_MANAPOINTSLEECHCHANCE:
-			return "manapoints leech chance";
-
-		case SPECIALSKILL_MANAPOINTSLEECHAMOUNT:
-			return "mana points leech amount";
-
-		default:
-			return "unknown";
-	}
+	return TYPE_NONE;
 }
 
 std::string getSkillName(uint8_t skillid)
@@ -801,9 +822,6 @@ std::string getSkillName(uint8_t skillid)
 
 		case SKILL_FISHING:
 			return "fishing";
-
-		case SKILL_MAGLEVEL:
-			return "magic level";
 
 		case SKILL_LEVEL:
 			return "level";
@@ -877,46 +895,51 @@ bool booleanString(const std::string& str)
 	return ch != 'f' && ch != 'n' && ch != '0';
 }
 
-std::string getWeaponName(WeaponType_t weaponType)
-{
-	switch (weaponType) {
-		case WEAPON_SWORD: return "sword";
-		case WEAPON_CLUB: return "club";
-		case WEAPON_AXE: return "axe";
-		case WEAPON_DISTANCE: return "distance";
-		case WEAPON_WAND: return "wand";
-		case WEAPON_AMMO: return "ammunition";
-		default: return std::string();
-	}
-}
-
 size_t combatTypeToIndex(CombatType_t combatType)
 {
 	switch (combatType) {
 		case COMBAT_PHYSICALDAMAGE:
 			return 0;
-		case COMBAT_ENERGYDAMAGE:
+		case COMBAT_ELECTRICDAMAGE:
 			return 1;
-		case COMBAT_EARTHDAMAGE:
+		case COMBAT_GRASSDAMAGE:
 			return 2;
 		case COMBAT_FIREDAMAGE:
 			return 3;
-		case COMBAT_UNDEFINEDDAMAGE:
-			return 4;
 		case COMBAT_LIFEDRAIN:
-			return 5;
-		case COMBAT_MANADRAIN:
-			return 6;
+			return 4;
 		case COMBAT_HEALING:
-			return 7;
-		case COMBAT_DROWNDAMAGE:
-			return 8;
+			return 5;
+		case COMBAT_WATERDAMAGE:
+			return 6;
 		case COMBAT_ICEDAMAGE:
+			return 7;
+		case COMBAT_BUGDAMAGE:
+			return 8;
+		case COMBAT_DARKDAMAGE:
 			return 9;
-		case COMBAT_HOLYDAMAGE:
+		case COMBAT_NORMALDAMAGE:
 			return 10;
-		case COMBAT_DEATHDAMAGE:
+		case COMBAT_FIGHTINGDAMAGE:
 			return 11;
+		case COMBAT_FLYINGDAMAGE:
+			return 12;
+		case COMBAT_POISONDAMAGE:
+			return 13;
+		case COMBAT_GROUNDDAMAGE:
+			return 14;
+		case COMBAT_PSYCHICDAMAGE:
+			return 15;
+		case COMBAT_ROCKDAMAGE:
+			return 16;
+		case COMBAT_GHOSTDAMAGE:
+			return 17;
+		case COMBAT_STEELDAMAGE:
+			return 18;
+		case COMBAT_FAIRYDAMAGE:
+			return 19;
+		case COMBAT_DRAGONDAMAGE:
+			return 20;
 		default:
 			return 0;
 	}
@@ -925,6 +948,94 @@ size_t combatTypeToIndex(CombatType_t combatType)
 CombatType_t indexToCombatType(size_t v)
 {
 	return static_cast<CombatType_t>(1 << v);
+}
+
+CombatType_t pokemonTypeToCombatType(PokemonType_t pokemonType)
+{
+	switch (pokemonType) {
+		case TYPE_NORMAL:
+			return COMBAT_NORMALDAMAGE;
+		case TYPE_FIRE:
+			return COMBAT_FIREDAMAGE;
+		case TYPE_FIGHTING:
+			return COMBAT_FIGHTINGDAMAGE;
+		case TYPE_WATER:
+			return COMBAT_WATERDAMAGE;
+		case TYPE_FLYING:
+			return COMBAT_FLYINGDAMAGE;
+		case TYPE_GRASS:
+			return COMBAT_GRASSDAMAGE;
+		case TYPE_ELECTRIC:
+			return COMBAT_ELECTRICDAMAGE;
+		case TYPE_POISON:
+			return COMBAT_POISONDAMAGE;
+		case TYPE_GROUND:
+			return COMBAT_GROUNDDAMAGE;
+		case TYPE_PSYCHIC:
+			return COMBAT_PSYCHICDAMAGE;
+		case TYPE_ROCK:
+			return COMBAT_ROCKDAMAGE;
+		case TYPE_ICE:
+			return COMBAT_ICEDAMAGE;
+		case TYPE_BUG:
+			return COMBAT_BUGDAMAGE;
+		case TYPE_DRAGON:
+			return COMBAT_DRAGONDAMAGE;
+		case TYPE_GHOST:
+			return COMBAT_GHOSTDAMAGE;
+		case TYPE_DARK:
+			return COMBAT_DARKDAMAGE;
+		case TYPE_STEEL:
+			return COMBAT_STEELDAMAGE;
+		case TYPE_FAIRY:
+			return COMBAT_FAIRYDAMAGE;
+		default:
+			return COMBAT_NONE;
+	}
+}
+
+PokemonType_t combatTypeToPokemonType(CombatType_t combatType)
+{
+	switch (combatType) {
+		case COMBAT_NORMALDAMAGE:
+			return TYPE_NORMAL;
+		case COMBAT_FIREDAMAGE:
+			return TYPE_FIRE;
+		case COMBAT_FIGHTINGDAMAGE:
+			return TYPE_FIGHTING;
+		case COMBAT_WATERDAMAGE:
+			return TYPE_WATER;
+		case COMBAT_FLYINGDAMAGE:
+			return TYPE_FLYING;
+		case COMBAT_GRASSDAMAGE:
+			return TYPE_GRASS;
+		case COMBAT_ELECTRICDAMAGE:
+			return TYPE_ELECTRIC;
+		case COMBAT_POISONDAMAGE:
+			return TYPE_POISON;
+		case COMBAT_GROUNDDAMAGE:
+			return TYPE_GROUND;
+		case COMBAT_PSYCHICDAMAGE:
+			return TYPE_PSYCHIC;
+		case COMBAT_ROCKDAMAGE:
+			return TYPE_ROCK;
+		case COMBAT_ICEDAMAGE:
+			return TYPE_ICE;
+		case COMBAT_BUGDAMAGE:
+			return TYPE_BUG;
+		case COMBAT_DRAGONDAMAGE:
+			return TYPE_DRAGON;
+		case COMBAT_GHOSTDAMAGE:
+			return TYPE_GHOST;
+		case COMBAT_DARKDAMAGE:
+			return TYPE_DARK;
+		case COMBAT_STEELDAMAGE:
+			return TYPE_STEEL;
+		case COMBAT_FAIRYDAMAGE:
+			return TYPE_FAIRY;
+		default:
+			return TYPE_NONE;
+	}
 }
 
 uint8_t serverFluidToClient(uint8_t serverFluid)
@@ -969,18 +1080,6 @@ itemAttrTypes stringToItemAttribute(const std::string& str)
 		return ITEM_ATTRIBUTE_PLURALNAME;
 	} else if (str == "weight") {
 		return ITEM_ATTRIBUTE_WEIGHT;
-	} else if (str == "attack") {
-		return ITEM_ATTRIBUTE_ATTACK;
-	} else if (str == "defense") {
-		return ITEM_ATTRIBUTE_DEFENSE;
-	} else if (str == "extradefense") {
-		return ITEM_ATTRIBUTE_EXTRADEFENSE;
-	} else if (str == "armor") {
-		return ITEM_ATTRIBUTE_ARMOR;
-	} else if (str == "hitchance") {
-		return ITEM_ATTRIBUTE_HITCHANCE;
-	} else if (str == "shootrange") {
-		return ITEM_ATTRIBUTE_SHOOTRANGE;
 	} else if (str == "owner") {
 		return ITEM_ATTRIBUTE_OWNER;
 	} else if (str == "duration") {
@@ -989,12 +1088,22 @@ itemAttrTypes stringToItemAttribute(const std::string& str)
 		return ITEM_ATTRIBUTE_DECAYSTATE;
 	} else if (str == "corpseowner") {
 		return ITEM_ATTRIBUTE_CORPSEOWNER;
-	} else if (str == "charges") {
-		return ITEM_ATTRIBUTE_CHARGES;
 	} else if (str == "fluidtype") {
 		return ITEM_ATTRIBUTE_FLUIDTYPE;
 	} else if (str == "doorid") {
 		return ITEM_ATTRIBUTE_DOORID;
+	} else if (str == "price") {
+		return ITEM_ATTRIBUTE_PRICE;
+	} else if (str == "pokemoncorpsegender") {
+		return ITEM_ATTRIBUTE_POKEMONCORPSEGENDER;
+	} else if (str == "pokemoncorpsetype") {
+		return ITEM_ATTRIBUTE_POKEMONCORPSETYPE;
+	} else if (str == "pokemonid") {
+		return ITEM_ATTRIBUTE_POKEMONID;
+	} else if (str == "pokemoncorpsenature") {
+		return ITEM_ATTRIBUTE_POKEMONCORPSENATURE;
+	} else if (str == "pokemoncorpseshinystatus") {
+		return ITEM_ATTRIBUTE_POKEMONCORPSESHINYSTATUS;
 	}
 	return ITEM_ATTRIBUTE_NONE;
 }
@@ -1021,23 +1130,8 @@ const char* getReturnMessage(ReturnValue value)
 		case RETURNVALUE_NOTMOVEABLE:
 			return "You cannot move this object.";
 
-		case RETURNVALUE_DROPTWOHANDEDITEM:
-			return "Drop the double-handed object first.";
-
-		case RETURNVALUE_BOTHHANDSNEEDTOBEFREE:
-			return "Both hands need to be free.";
-
 		case RETURNVALUE_CANNOTBEDRESSED:
-			return "You cannot dress this object there.";
-
-		case RETURNVALUE_PUTTHISOBJECTINYOURHAND:
-			return "Put this object in your hand.";
-
-		case RETURNVALUE_PUTTHISOBJECTINBOTHHANDS:
-			return "Put this object in both hands.";
-
-		case RETURNVALUE_CANONLYUSEONEWEAPON:
-			return "You may only use one weapon.";
+			return "You cannot put this object there.";
 
 		case RETURNVALUE_TOOFARAWAY:
 			return "Too far away.";
@@ -1088,9 +1182,6 @@ const char* getReturnMessage(ReturnValue value)
 		case RETURNVALUE_PLAYERWITHTHISNAMEISNOTONLINE:
 			return "A player with this name is not online.";
 
-		case RETURNVALUE_NOTREQUIREDLEVELTOUSERUNE:
-			return "You do not have the required magic level to use this rune.";
-
 		case RETURNVALUE_YOUAREALREADYTRADING:
 			return "You are already trading.";
 
@@ -1106,20 +1197,8 @@ const char* getReturnMessage(ReturnValue value)
 		case RETURNVALUE_NOTENOUGHLEVEL:
 			return "You do not have enough level.";
 
-		case RETURNVALUE_NOTENOUGHMAGICLEVEL:
-			return "You do not have enough magic level.";
-
-		case RETURNVALUE_NOTENOUGHMANA:
-			return "You do not have enough mana.";
-
-		case RETURNVALUE_NOTENOUGHSOUL:
-			return "You do not have enough soul.";
-
 		case RETURNVALUE_YOUAREEXHAUSTED:
 			return "You are exhausted.";
-
-		case RETURNVALUE_CANONLYUSETHISRUNEONCREATURES:
-			return "You can only use this rune on creatures.";
 
 		case RETURNVALUE_PLAYERISNOTREACHABLE:
 			return "Player is not reachable.";
@@ -1145,20 +1224,11 @@ const char* getReturnMessage(ReturnValue value)
 		case RETURNVALUE_YOUCANONLYUSEITONCREATURES:
 			return "You can only use it on creatures.";
 
-		case RETURNVALUE_TURNSECUREMODETOATTACKUNMARKEDPLAYERS:
-			return "Turn secure mode off if you really want to attack unmarked players.";
-
 		case RETURNVALUE_YOUNEEDPREMIUMACCOUNT:
 			return "You need a premium account.";
 
-		case RETURNVALUE_YOUNEEDTOLEARNTHISSPELL:
-			return "You need to learn this spell first.";
-
-		case RETURNVALUE_YOURVOCATIONCANNOTUSETHISSPELL:
-			return "Your vocation cannot use this spell.";
-
-		case RETURNVALUE_YOUNEEDAWEAPONTOUSETHISSPELL:
-			return "You need to equip a weapon to use this spell.";
+		case RETURNVALUE_YOURPROFESSIONCANNOTUSETHISMOVE:
+			return "Your profession cannot use this move.";
 
 		case RETURNVALUE_PLAYERISPZLOCKEDLEAVEPVPZONE:
 			return "You can not leave a pvp zone after attacking another player.";
@@ -1172,9 +1242,6 @@ const char* getReturnMessage(ReturnValue value)
 		case RETURNVALUE_YOUCANNOTLOGOUTHERE:
 			return "You can not logout here.";
 
-		case RETURNVALUE_YOUNEEDAMAGICITEMTOCASTSPELL:
-			return "You need a magic item to cast this spell.";
-
 		case RETURNVALUE_CANNOTCONJUREITEMHERE:
 			return "You cannot conjure items here.";
 
@@ -1183,9 +1250,6 @@ const char* getReturnMessage(ReturnValue value)
 
 		case RETURNVALUE_NAMEISTOOAMBIGUOUS:
 			return "Player name is ambiguous.";
-
-		case RETURNVALUE_CANONLYUSEONESHIELD:
-			return "You may use only one shield.";
 
 		case RETURNVALUE_NOPARTYMEMBERSINRANGE:
 			return "No party members in range.";
@@ -1214,9 +1278,100 @@ const char* getReturnMessage(ReturnValue value)
 		case RETURNVALUE_YOUCANNOTTRADETHISHOUSE:
 			return "You can not trade this house.";
 
+		case RETURNVALUE_CANONLYUSEPOKEBALLINPOKEMON:
+			return "You can only use a pokeball in a fainted Pokemon.";
+
+		case RETURNVALUE_CANNOTCAPTURETHISPOKEMON:
+			return "You can not capture this Pokemon.";
+
+		case RETURNVALUE_MAXPOKEMONINBAG:
+			return "You can only have 6 Pokemon.";
+
+		case RETURNVALUE_CANONLYUSEFOODINYOURPOKEMON:
+			return "You can only use a food in your Pokemon.";
+
+		case RETURNVALUE_CANONLYUSEFOODINYOURSELF:
+			return "You can only use a food in yourself.";
+
+		case RETURNVALUE_CANONLYUSEFOODINYOURPOKEMONORINYOURSELF:
+			return "You can only use a food in your Pokemon or in yourself.";
+
+		case RETURNVALUE_YOURPOKEMONDONOTLIKEIT:
+			return "Your Pokemon do not like it.";
+
+		case RETURNVALUE_YOUCANNOTPUTTHISITEM:
+			return "You cannot put this item in this container.";
+
 		default: // RETURNVALUE_NOTPOSSIBLE, etc
 			return "Sorry, not possible.";
 	}
+}
+
+const char* getCallPokemonMessage(CallPokemon value)
+{
+	switch (value) {
+		case CALLPOKEMON_MESSAGE_1:
+			return ", I need your Help!";
+
+		case CALLPOKEMON_MESSAGE_2:
+			return ", it's the battle time.";
+
+		case CALLPOKEMON_MESSAGE_3:
+			return ", I choose you!";
+
+		default:
+			return ", I choose you!";
+	}
+}
+
+const char* getCallbackPokemonMessage(CallbackPokemon value)
+{
+	switch (value) {
+		case CALLBACKPOKEMON_MESSAGE_1:
+			return ", thanks!";
+
+		case CALLBACKPOKEMON_MESSAGE_2:
+			return ", nice work.";
+
+		case CALLBACKPOKEMON_MESSAGE_3:
+			return ", that's enough. Come back!";
+
+		default:
+			return ", that's enough. Come back!";
+	}
+}
+
+std::string capitalizeString(std::string str)
+{
+	str[0] = toupper(str[0]);
+	std::transform(str.begin()+1, str.end(),str.begin(),str.begin()+1, 
+	[](const char& a, const char& b) -> char
+	{
+		if(b==' ' || b=='\t')
+		{
+			return toupper(a);
+		}
+		return a;
+	});
+
+	return str;
+}
+
+uint16_t daysUntilTheEnd(time_t tstart, time_t tend)
+{
+	boost::posix_time::ptime start = boost::posix_time::from_time_t(tstart);
+	boost::posix_time::ptime end = boost::posix_time::from_time_t(tend);
+
+	boost::posix_time::time_duration diff = end - start;
+
+
+	int64_t seconds = diff.total_seconds();
+
+	if (seconds <= 86400) {
+		return (seconds / (60 * 60 * 24)) + 1;
+	}
+
+	return 0;
 }
 
 int64_t OTSYS_TIME()

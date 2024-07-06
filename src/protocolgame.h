@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -164,6 +165,7 @@ class ProtocolGame final : public Protocol
 		void parseCloseChannel(NetworkMessage& msg);
 
 		//Send functions
+		void sendAnimatedText(const Position& pos, uint8_t color, const std::string& text);
 		void sendChannelMessage(const std::string& author, const std::string& text, SpeakClasses type, uint16_t channel);
 		void sendChannelEvent(uint16_t channelId, const std::string& playerName, ChannelEvent_t channelEvent);
 		void sendClosePrivate(uint16_t channelId);
@@ -176,8 +178,10 @@ class ProtocolGame final : public Protocol
 		void sendIcons(uint16_t icons);
 		void sendFYIBox(const std::string& message);
 
-		void sendDistanceShoot(const Position& from, const Position& to, uint8_t type);
-		void sendMagicEffect(const Position& pos, uint8_t type);
+		void sendDistanceShoot(const Position& from, const Position& to, uint16_t type);
+		void sendEffect(const Position& pos, uint16_t type);
+		void sendSound(const Position& pos, uint16_t type, uint8_t channel = SOUND_CHANNEL_EFFECT);
+		void sendDistanceSound(const Position& from, const Position& to, uint16_t type, uint8_t channel = SOUND_CHANNEL_EFFECT);
 		void sendCreatureHealth(const Creature* creature);
 		void sendSkills();
 		void sendPing();
@@ -192,6 +196,7 @@ class ProtocolGame final : public Protocol
 		void sendChangeSpeed(const Creature* creature, uint32_t speed);
 		void sendCancelTarget();
 		void sendCreatureOutfit(const Creature* creature, const Outfit_t& outfit);
+		void sendCreatureName(const Creature* creature, const std::string& name);
 		void sendStats();
 		void sendBasicData();
 		void sendTextMessage(const TextMessage& message);
@@ -202,7 +207,7 @@ class ProtocolGame final : public Protocol
 
 		void sendCreatureWalkthrough(const Creature* creature, bool walkthrough);
 		void sendCreatureShield(const Creature* creature);
-		void sendCreatureSkull(const Creature* creature);
+		void sendCreatureGender(const Creature* creature);
 		void sendCreatureType(uint32_t creatureId, uint8_t creatureType);
 		void sendCreatureHelpers(uint32_t creatureId, uint16_t helpers);
 
@@ -239,8 +244,8 @@ class ProtocolGame final : public Protocol
 
 		void sendCreatureSquare(const Creature* creature, SquareColor_t color);
 
-		void sendSpellCooldown(uint8_t spellId, uint32_t time);
-		void sendSpellGroupCooldown(SpellGroup_t groupId, uint32_t time);
+		void sendPokemonMoveCooldown(uint16_t moveId, uint32_t time);
+		void sendPokemonMoves(Pokemon* pokemon);
 
 		//tiles
 		void sendMapDescription(const Position& pos);
@@ -284,6 +289,7 @@ class ProtocolGame final : public Protocol
 
 		void AddCreature(NetworkMessage& msg, const Creature* creature, bool known, uint32_t remove);
 		void AddPlayerStats(NetworkMessage& msg);
+		void AddAnimatedText(NetworkMessage& msg, const Position& pos, uint8_t color, const std::string& text);
 		void AddOutfit(NetworkMessage& msg, const Outfit_t& outfit);
 		void AddPlayerSkills(NetworkMessage& msg);
 		void AddWorldLight(NetworkMessage& msg, LightInfo lightInfo);

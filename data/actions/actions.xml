@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<actions>
-	<!-- Enchanting -->
-	<action fromid="2146" toid="2147" script="other/enchanting.lua" />
-	<action fromid="2149" toid="2150" script="other/enchanting.lua" />
-	<action itemid="2342" script="other/enchanting.lua" />
-	<action fromid="7759" toid="7762" script="other/enchanting.lua" />
-	<action itemid="24739" script="other/enchanting.lua" />
-
-	<!-- Quests -->
-	<action itemid="1740" script="quests/quests.lua" />
-	<action fromid="1747" toid="1749" script="quests/quests.lua" />
-	<action uniqueid="30015" script="quests/annihilator.lua" />
-
+<actions>	
 	<!-- Tools -->
 	<action itemid="2420" script="tools/machete.lua" />
 	<action itemid="2550" script="tools/scythe.lua" />
@@ -43,49 +31,10 @@
 	<action fromid="9575" toid="9582" script="other/decayto.lua" />
 	<action fromid="9747" toid="9750" script="other/decayto.lua" />
 	<action fromid="19691" toid="19692" script="other/decayto.lua" />
-
-	<!-- Food -->
-	<action itemid="2362" script="other/food.lua" />
-	<action fromid="2666" toid="2691" script="other/food.lua" />
-	<action fromid="2695" toid="2696" script="other/food.lua" />
-	<action fromid="2787" toid="2796" script="other/food.lua" />
-	<action itemid="5097" script="other/food.lua" />
-	<action itemid="6125" script="other/food.lua" />
-	<action fromid="6278" toid="6279" script="other/food.lua" />
-	<action fromid="6393" toid="6394" script="other/food.lua" />
-	<action itemid="6501" script="other/food.lua" />
-	<action fromid="6541" toid="6545" script="other/food.lua" />
-	<action itemid="6569" script="other/food.lua" />
-	<action itemid="6574" script="other/food.lua" />
-	<action fromid="7158" toid="7159" script="other/food.lua" />
-	<action fromid="7372" toid="7377" script="other/food.lua" />
-	<action fromid="7909" toid="7910" script="other/food.lua" />
-	<action itemid="7963" script="other/food.lua" />
-	<action itemid="8112" script="other/food.lua" />
-	<action fromid="8838" toid="8845" script="other/food.lua" />
-	<action itemid="8847" script="other/food.lua" />
-	<action itemid="9005" script="other/food.lua" />
-	<action itemid="9114" script="other/food.lua" />
-	<action itemid="9996" script="other/food.lua" />
-	<action itemid="10454" script="other/food.lua" />
-	<action itemid="11246" script="other/food.lua" />
-	<action itemid="11370" script="other/food.lua" />
-	<action itemid="11429" script="other/food.lua" />
-	<action fromid="12415" toid="12418" script="other/food.lua" />
-	<action fromid="12637" toid="12639" script="other/food.lua" />
-	<action itemid="13297" script="other/food.lua" />
-	<action itemid="15405" script="other/food.lua" />
-	<action fromid="15487" toid="15488" script="other/food.lua" />
-	<action itemid="16014" script="other/food.lua" />
-	<action itemid="18397" script="other/food.lua" />
-	<action itemid="19737" script="other/food.lua" />
-	<action fromid="20100" toid="20101" script="other/food.lua" />
-
-	<!-- Spellbooks -->
-	<action itemid="2175" script="other/spellbook.lua" />
-	<action itemid="6120" script="other/spellbook.lua" />
-	<action fromid="8900" toid="8904" script="other/spellbook.lua" />
-	<action itemid="8918" script="other/spellbook.lua" />
+	<action fromid="27727" toid="27730" script="other/decayto.lua" />
+	<action fromid="28695" toid="28698" script="other/decayto.lua" />
+	<action fromid="28764" toid="28767" script="other/decayto.lua" />
+	<action itemid="7552" script="sea/large_seashell.lua" />
 
 	<!-- Other -->
 	<action itemid="6578" script="other/partyhat.lua" />
@@ -99,6 +48,8 @@
 	<action itemid="2148" script="other/changegold.lua" />
 	<action itemid="2152" script="other/changegold.lua" />
 	<action itemid="2160" script="other/changegold.lua" />
+	<action itemid="2161" script="other/changegold.lua" />
+	<action itemid="3956" script="other/changegold.lua" />
 	<action fromid="3901" toid="3938" script="other/constructionkits.lua" />
 	<action fromid="5086" toid="5088" script="other/constructionkits.lua" />
 	<action itemid="6114" script="other/constructionkits.lua" />
@@ -144,15 +95,6 @@
 	<action fromid="2031" toid="2034" script="other/fluids.lua" />
 	<action fromid="2574" toid="2577" script="other/fluids.lua" />
 	<action fromid="5792" toid="5797" script="other/die.lua" />
-	<action itemid="6558" script="other/potions.lua" />
-	<action fromid="7439" toid="7440" script="other/potions.lua" />
-	<action itemid="7443" script="other/potions.lua" />
-	<action fromid="7588" toid="7591" script="other/potions.lua" />
-	<action itemid="7618" script="other/potions.lua" />
-	<action itemid="7620" script="other/potions.lua" />
-	<action fromid="8472" toid="8474" script="other/potions.lua" />
-	<action itemid="8704" script="other/potions.lua" />
-	<action fromid="26029" toid="26031" script="other/potions.lua" />
 	<action itemid="2692" script="other/createbread.lua" />
 	<action itemid="2694" script="other/createbread.lua" />
 	<action fromid="6436" toid="6447" script="other/windows.lua" />
@@ -205,8 +147,18 @@
 	<action fromid="17235" toid="17238" script="other/doors.lua" />
 	<action fromid="18208" toid="18209" script="other/doors.lua" />
 	<action fromid="13020" toid="13023" script="other/doors.lua" />
+
+	<action fromid="26918" toid="26921" script="other/doors.lua" />
+	<action fromid="26925" toid="26928" script="other/doors.lua" />
+	<action fromid="27155" toid="27162" script="other/doors.lua" />
+	<action fromid="27176" toid="27191" script="other/doors.lua" />
+	<action fromid="27422" toid="27435" script="other/doors.lua" />
+
+
 	<action itemid="14405" function="market" />
-	<action fromid="18488" toid="18492" script="other/skilltrainer.lua" />
 	<action itemid="3743" script="other/transforms.lua" />
 	<action itemid="4404" script="other/transforms.lua" />
+
+	<!-- medicine -->
+	<action fromid="8877" toid="8881" script="other/potions.lua" allowfaruse="1" />
 </actions>

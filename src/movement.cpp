@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,8 +26,12 @@
 
 #include "movement.h"
 
+#include "pokemon.h"
+
 extern Game g_game;
-extern Vocations g_vocations;
+extern Professions g_professions;
+extern Clans g_clans;
+extern Pokemons g_pokemons;
 
 MoveEvents::MoveEvents() :
 	scriptInterface("MoveEvents Interface")
@@ -65,6 +70,11 @@ std::string MoveEvents::getScriptBaseName() const
 	return "movements";
 }
 
+std::string MoveEvents::getScriptPrefixName() const
+{
+	return "";
+}
+
 Event_ptr MoveEvents::getEvent(const std::string& nodeName)
 {
 	if (strcasecmp(nodeName.c_str(), "movevent") != 0) {
@@ -101,8 +111,7 @@ bool MoveEvents::registerEvent(Event_ptr event, const pugi::xml_node& node)
 			ItemType& it = Item::items.getItemType(id);
 			it.wieldInfo = moveEvent->getWieldInfo();
 			it.minReqLevel = moveEvent->getReqLevel();
-			it.minReqMagicLevel = moveEvent->getReqMagLv();
-			it.vocationString = moveEvent->getVocationString();
+			it.professionString = moveEvent->getProfessionString();
 		}
 		addEvent(std::move(*moveEvent), id, itemIdMap);
 	} else if ((attr = node.attribute("fromid"))) {
@@ -115,8 +124,7 @@ bool MoveEvents::registerEvent(Event_ptr event, const pugi::xml_node& node)
 			ItemType& it = Item::items.getItemType(id);
 			it.wieldInfo = moveEvent->getWieldInfo();
 			it.minReqLevel = moveEvent->getReqLevel();
-			it.minReqMagicLevel = moveEvent->getReqMagLv();
-			it.vocationString = moveEvent->getVocationString();
+			it.professionString = moveEvent->getProfessionString();
 
 			while (++id <= endId) {
 				addEvent(*moveEvent, id, itemIdMap);
@@ -124,8 +132,7 @@ bool MoveEvents::registerEvent(Event_ptr event, const pugi::xml_node& node)
 				ItemType& tit = Item::items.getItemType(id);
 				tit.wieldInfo = moveEvent->getWieldInfo();
 				tit.minReqLevel = moveEvent->getReqLevel();
-				tit.minReqMagicLevel = moveEvent->getReqMagLv();
-				tit.vocationString = moveEvent->getVocationString();
+				tit.professionString = moveEvent->getProfessionString();
 			}
 		} else {
 			while (++id <= endId) {
@@ -186,16 +193,16 @@ MoveEvent* MoveEvents::getEvent(Item* item, MoveEvent_t eventType, slots_t slot)
 {
 	uint32_t slotp;
 	switch (slot) {
-		case CONST_SLOT_HEAD: slotp = SLOTP_HEAD; break;
-		case CONST_SLOT_NECKLACE: slotp = SLOTP_NECKLACE; break;
+		case CONST_SLOT_ROD: slotp = SLOTP_ROD; break;
+		case CONST_SLOT_POKEDEX: slotp = SLOTP_POKEDEX; break;
 		case CONST_SLOT_BACKPACK: slotp = SLOTP_BACKPACK; break;
-		case CONST_SLOT_ARMOR: slotp = SLOTP_ARMOR; break;
+		case CONST_SLOT_ORDER: slotp = SLOTP_ORDER; break;
 		case CONST_SLOT_RIGHT: slotp = SLOTP_RIGHT; break;
 		case CONST_SLOT_LEFT: slotp = SLOTP_LEFT; break;
-		case CONST_SLOT_LEGS: slotp = SLOTP_LEGS; break;
-		case CONST_SLOT_FEET: slotp = SLOTP_FEET; break;
-		case CONST_SLOT_AMMO: slotp = SLOTP_AMMO; break;
-		case CONST_SLOT_RING: slotp = SLOTP_RING; break;
+		case CONST_SLOT_PORTRAIT: slotp = SLOTP_PORTRAIT; break;
+		case CONST_SLOT_POKEBALL: slotp = SLOTP_POKEBALL; break;
+		case CONST_SLOT_SUPPORT: slotp = SLOTP_SUPPORT; break;
+		case CONST_SLOT_PICK: slotp = SLOTP_PICK; break;
 		default: slotp = 0; break;
 	}
 
@@ -306,6 +313,27 @@ uint32_t MoveEvents::onCreatureMove(Creature* creature, const Tile* tile, MoveEv
 
 uint32_t MoveEvents::onPlayerEquip(Player* player, Item* item, slots_t slot, bool isCheck)
 {
+	// portrait appear
+	if ((item->getSlotPosition() & SLOTP_POKEBALL) && (item->hasAttribute(ITEM_ATTRIBUTE_POKEMONID))) {
+		Pokemon* pokemon = g_game.getPokemonByGUID(item->getPokemonId());
+		if (!pokemon) {
+			return 0;
+		}
+
+		Item* portrait = player->getInventoryItem(CONST_SLOT_PORTRAIT);
+		if (portrait) {
+			g_game.transformItem(portrait, pokemon->getPortrait());
+		} else {
+			Item* item = Item::CreateItem(pokemon->getPortrait(), 1);
+			g_game.internalPlayerAddItem(player, item, false, CONST_SLOT_PORTRAIT);
+		}
+
+		pokemon->setLevel(player->getLevel());
+		player->setPokemonHealthMax(pokemon->getMaxHealth());
+		player->setPokemonHealth(pokemon->getHealth());
+		player->sendStats();
+	}
+
 	MoveEvent* moveEvent = getEvent(item, MOVE_EVENT_EQUIP, slot);
 	if (!moveEvent) {
 		return 1;
@@ -315,6 +343,21 @@ uint32_t MoveEvents::onPlayerEquip(Player* player, Item* item, slots_t slot, boo
 
 uint32_t MoveEvents::onPlayerDeEquip(Player* player, Item* item, slots_t slot)
 {
+	// portrait disappear
+	if (item->hasAttribute(ITEM_ATTRIBUTE_POKEMONID) && (slot == CONST_SLOT_POKEBALL)) {
+		Item* portrait = player->getInventoryItem(CONST_SLOT_PORTRAIT);
+		if (portrait) {
+			g_game.transformItem(portrait, 2513);
+		} else {
+			Item* item = Item::CreateItem(2513, 1);
+			g_game.internalPlayerAddItem(player, item, false, CONST_SLOT_PORTRAIT);
+		}
+
+		player->setPokemonHealthMax(0);
+		player->setPokemonHealth(0);
+		player->sendStats();
+	}
+
 	MoveEvent* moveEvent = getEvent(item, MOVE_EVENT_DEEQUIP, slot);
 	if (!moveEvent) {
 		return 1;
@@ -410,28 +453,26 @@ bool MoveEvent::configureEvent(const pugi::xml_node& node)
 		pugi::xml_attribute slotAttribute = node.attribute("slot");
 		if (slotAttribute) {
 			tmpStr = asLowerCaseString(slotAttribute.as_string());
-			if (tmpStr == "head") {
-				slot = SLOTP_HEAD;
-			} else if (tmpStr == "necklace") {
-				slot = SLOTP_NECKLACE;
+			if (tmpStr == "rod") {
+				slot = SLOTP_ROD;
+			} else if (tmpStr == "pokedex") {
+				slot = SLOTP_POKEDEX;
 			} else if (tmpStr == "backpack") {
 				slot = SLOTP_BACKPACK;
-			} else if (tmpStr == "armor") {
-				slot = SLOTP_ARMOR;
+			} else if (tmpStr == "order") {
+				slot = SLOTP_ORDER;
 			} else if (tmpStr == "right-hand") {
 				slot = SLOTP_RIGHT;
 			} else if (tmpStr == "left-hand") {
 				slot = SLOTP_LEFT;
 			} else if (tmpStr == "hand" || tmpStr == "shield") {
 				slot = SLOTP_RIGHT | SLOTP_LEFT;
-			} else if (tmpStr == "legs") {
-				slot = SLOTP_LEGS;
-			} else if (tmpStr == "feet") {
-				slot = SLOTP_FEET;
-			} else if (tmpStr == "ring") {
-				slot = SLOTP_RING;
-			} else if (tmpStr == "ammo") {
-				slot = SLOTP_AMMO;
+			} else if (tmpStr == "portrait") {
+				slot = SLOTP_PORTRAIT;
+			} else if (tmpStr == "pokeball") {
+				slot = SLOTP_POKEBALL;
+			} else if (tmpStr == "pick") {
+				slot = SLOTP_PICK;
 			} else {
 				std::cout << "[Warning - MoveEvent::configureMoveEvent] Unknown slot type: " << slotAttribute.as_string() << std::endl;
 			}
@@ -447,14 +488,6 @@ bool MoveEvent::configureEvent(const pugi::xml_node& node)
 			}
 		}
 
-		pugi::xml_attribute magLevelAttribute = node.attribute("maglevel");
-		if (magLevelAttribute) {
-			reqMagLevel = pugi::cast<uint32_t>(magLevelAttribute.value());
-			if (reqMagLevel > 0) {
-				wieldInfo |= WIELDINFO_MAGLV;
-			}
-		}
-
 		pugi::xml_attribute premiumAttribute = node.attribute("premium");
 		if (premiumAttribute) {
 			premium = premiumAttribute.as_bool();
@@ -463,39 +496,39 @@ bool MoveEvent::configureEvent(const pugi::xml_node& node)
 			}
 		}
 
-		//Gather vocation information
-		std::list<std::string> vocStringList;
-		for (auto vocationNode : node.children()) {
-			pugi::xml_attribute vocationNameAttribute = vocationNode.attribute("name");
-			if (!vocationNameAttribute) {
+		//Gather profession information
+		std::list<std::string> profStringList;
+		for (auto professionNode : node.children()) {
+			pugi::xml_attribute professionNameAttribute = professionNode.attribute("name");
+			if (!professionNameAttribute) {
 				continue;
 			}
 
-			int32_t vocationId = g_vocations.getVocationId(vocationNameAttribute.as_string());
-			if (vocationId != -1) {
-				vocEquipMap[vocationId] = true;
-				if (vocationNode.attribute("showInDescription").as_bool(true)) {
-					vocStringList.push_back(asLowerCaseString(vocationNameAttribute.as_string()));
+			int32_t professionId = g_professions.getProfessionId(professionNameAttribute.as_string());
+			if (professionId != -1) {
+				profEquipMap[professionId] = true;
+				if (professionNode.attribute("showInDescription").as_bool(true)) {
+					profStringList.push_back(asLowerCaseString(professionNameAttribute.as_string()));
 				}
 			}
 		}
 
-		if (!vocEquipMap.empty()) {
-			wieldInfo |= WIELDINFO_VOCREQ;
+		if (!profEquipMap.empty()) {
+			wieldInfo |= WIELDINFO_PROFREQ;
 		}
 
-		for (const std::string& str : vocStringList) {
-			if (!vocationString.empty()) {
-				if (str != vocStringList.back()) {
-					vocationString.push_back(',');
-					vocationString.push_back(' ');
+		for (const std::string& str : profStringList) {
+			if (!professionString.empty()) {
+				if (str != profStringList.back()) {
+					professionString.push_back(',');
+					professionString.push_back(' ');
 				} else {
-					vocationString += " and ";
+					professionString += " and ";
 				}
 			}
 
-			vocationString += str;
-			vocationString.push_back('s');
+			professionString += str;
+			professionString.push_back('s');
 		}
 	}
 	return true;
@@ -544,8 +577,8 @@ uint32_t EquipItem(MoveEvent* moveEvent, Player* player, Item* item, slots_t slo
 		return 1;
 	}
 
-	if (!player->hasFlag(PlayerFlag_IgnoreWeaponCheck) && moveEvent->getWieldInfo() != 0) {
-		if (player->getLevel() < moveEvent->getReqLevel() || player->getMagicLevel() < moveEvent->getReqMagLv()) {
+	if (moveEvent->getWieldInfo() != 0) {
+		if (player->getLevel() < moveEvent->getReqLevel()) {
 			return 0;
 		}
 
@@ -553,8 +586,8 @@ uint32_t EquipItem(MoveEvent* moveEvent, Player* player, Item* item, slots_t slo
 			return 0;
 		}
 
-		const VocEquipMap& vocEquipMap = moveEvent->getVocEquipMap();
-		if (!vocEquipMap.empty() && vocEquipMap.find(player->getVocationId()) == vocEquipMap.end()) {
+		const PprofEquipMap& profEquipMap = moveEvent->getPprofEquipMap();
+		if (!profEquipMap.empty() && profEquipMap.find(player->getProfessionId()) == profEquipMap.end()) {
 			return 0;
 		}
 	}
@@ -580,11 +613,6 @@ uint32_t EquipItem(MoveEvent* moveEvent, Player* player, Item* item, slots_t slo
 		player->addCondition(condition);
 	}
 
-	if (it.abilities->manaShield) {
-		Condition* condition = Condition::createCondition(static_cast<ConditionId_t>(slot), CONDITION_MANASHIELD, -1, 0);
-		player->addCondition(condition);
-	}
-
 	if (it.abilities->speed != 0) {
 		g_game.changeSpeed(player, it.abilities->speed);
 	}
@@ -605,14 +633,6 @@ uint32_t EquipItem(MoveEvent* moveEvent, Player* player, Item* item, slots_t slo
 			condition->setParam(CONDITION_PARAM_HEALTHTICKS, it.abilities->healthTicks);
 		}
 
-		if (it.abilities->manaGain != 0) {
-			condition->setParam(CONDITION_PARAM_MANAGAIN, it.abilities->manaGain);
-		}
-
-		if (it.abilities->manaTicks != 0) {
-			condition->setParam(CONDITION_PARAM_MANATICKS, it.abilities->manaTicks);
-		}
-
 		player->addCondition(condition);
 	}
 
@@ -623,13 +643,6 @@ uint32_t EquipItem(MoveEvent* moveEvent, Player* player, Item* item, slots_t slo
 		if (it.abilities->skills[i]) {
 			needUpdateSkills = true;
 			player->setVarSkill(static_cast<skills_t>(i), it.abilities->skills[i]);
-		}
-	}
-
-	for (int32_t i = SPECIALSKILL_FIRST; i <= SPECIALSKILL_LAST; ++i) {
-		if (it.abilities->specialSkills[i]) {
-			needUpdateSkills = true;
-			player->setVarSpecialSkill(static_cast<SpecialSkills_t>(i), it.abilities->specialSkills[i]);
 		}
 	}
 
@@ -681,10 +694,6 @@ uint32_t DeEquipItem(MoveEvent*, Player* player, Item* item, slots_t slot, bool)
 		player->removeCondition(CONDITION_INVISIBLE, static_cast<ConditionId_t>(slot));
 	}
 
-	if (it.abilities->manaShield) {
-		player->removeCondition(CONDITION_MANASHIELD, static_cast<ConditionId_t>(slot));
-	}
-
 	if (it.abilities->speed != 0) {
 		g_game.changeSpeed(player, -it.abilities->speed);
 	}
@@ -705,13 +714,6 @@ uint32_t DeEquipItem(MoveEvent*, Player* player, Item* item, slots_t slot, bool)
 		if (it.abilities->skills[i] != 0) {
 			needUpdateSkills = true;
 			player->setVarSkill(static_cast<skills_t>(i), -it.abilities->skills[i]);
-		}
-	}
-
-	for (int32_t i = SPECIALSKILL_FIRST; i <= SPECIALSKILL_LAST; ++i) {
-		if (it.abilities->specialSkills[i] != 0) {
-			needUpdateSkills = true;
-			player->setVarSpecialSkill(static_cast<SpecialSkills_t>(i), -it.abilities->specialSkills[i]);
 		}
 	}
 

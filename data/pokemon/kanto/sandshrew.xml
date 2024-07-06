@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="27"  name="Sandshrew" nameDescription="a Sandshrew" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="27" corpse="2836" />
+	<type first="ground" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2402" />
+	<icon charged="26408" discharged="26627" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "50" />
+		<attack value="75" />
+		<defense value="85" />
+		<specialAttack value="20" />
+		<specialDefense value="30" />
+		<speed value="40" />
+	</basestats>
+	<evolutions>
+		<evolution to="sandslash" at="anytime" stone="8925" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

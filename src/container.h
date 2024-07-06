@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -108,6 +109,7 @@ class Container : public Item, public Cylinder
 
 		uint32_t getItemHoldingCount() const;
 		uint32_t getWeight() const override final;
+		uint8_t getPokemonCount() const override final;
 
 		bool isUnlocked() const {
 			return unlocked;
@@ -156,6 +158,7 @@ class Container : public Item, public Cylinder
 
 		uint32_t maxSize;
 		uint32_t totalWeight = 0;
+		uint32_t totalPokemon = 0;
 		uint32_t serializationCount = 0;
 
 		bool unlocked;
@@ -167,6 +170,7 @@ class Container : public Item, public Cylinder
 
 		Container* getParentContainer();
 		void updateItemWeight(int32_t diff);
+		void updateItemPokemonCount(int32_t diff);
 
 		friend class ContainerIterator;
 		friend class IOMapSerialize;

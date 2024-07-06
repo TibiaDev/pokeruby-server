@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="31"  name="Nidoqueen" nameDescription="a Nidoqueen" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="31" corpse="2840" />
+	<type first="poison" second="ground" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2406" />
+	<icon charged="26403" discharged="26622" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "90" />
+		<attack value="82" />
+		<defense value="87" />
+		<specialAttack value="75" />
+		<specialDefense value="85" />
+		<speed value="76" />
+	</basestats>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

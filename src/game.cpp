@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,40 +34,34 @@
 #include "iologindata.h"
 #include "iomarket.h"
 #include "items.h"
-#include "monster.h"
+#include "pokemon.h"
 #include "movement.h"
 #include "scheduler.h"
 #include "server.h"
-#include "spells.h"
+#include "moves.h"
 #include "talkaction.h"
-#include "weapons.h"
+#include "pokeballs.h"
+#include "foods.h"
 
 extern ConfigManager g_config;
 extern Actions* g_actions;
 extern Chat* g_chat;
 extern TalkActions* g_talkActions;
-extern Spells* g_spells;
-extern Vocations g_vocations;
+extern Moves* g_moves;
+extern Professions g_professions;
+extern Clans g_clans;
 extern GlobalEvents* g_globalEvents;
 extern CreatureEvents* g_creatureEvents;
 extern Events* g_events;
 extern CreatureEvents* g_creatureEvents;
-extern Monsters g_monsters;
+extern Pokemons g_pokemons;
 extern MoveEvents* g_moveEvents;
-extern Weapons* g_weapons;
+extern Pokeballs* g_pokeballs;
+extern Foods* g_foods;
 
 Game::Game()
 {
-	offlineTrainingWindow.choices.emplace_back("Sword Fighting and Shielding", SKILL_SWORD);
-	offlineTrainingWindow.choices.emplace_back("Axe Fighting and Shielding", SKILL_AXE);
-	offlineTrainingWindow.choices.emplace_back("Club Fighting and Shielding", SKILL_CLUB);
-	offlineTrainingWindow.choices.emplace_back("Distance Fighting and Shielding", SKILL_DISTANCE);
-	offlineTrainingWindow.choices.emplace_back("Magic Level and Shielding", SKILL_MAGLEVEL);
-	offlineTrainingWindow.buttons.emplace_back("Okay", 1);
-	offlineTrainingWindow.buttons.emplace_back("Cancel", 0);
-	offlineTrainingWindow.defaultEnterButton = 1;
-	offlineTrainingWindow.defaultEscapeButton = 0;
-	offlineTrainingWindow.priority = true;
+	//
 }
 
 Game::~Game()
@@ -80,7 +75,6 @@ void Game::start(ServiceManager* manager)
 {
 	serviceManager = manager;
 
-	g_scheduler.addEvent(createSchedulerTask(EVENT_LIGHTINTERVAL, std::bind(&Game::checkLight, this)));
 	g_scheduler.addEvent(createSchedulerTask(EVENT_CREATURE_THINK_INTERVAL, std::bind(&Game::checkCreatures, this, 0)));
 	g_scheduler.addEvent(createSchedulerTask(EVENT_DECAYINTERVAL, std::bind(&Game::checkDecay, this)));
 }
@@ -138,7 +132,6 @@ void Game::setGameState(GameState_t newState)
 				it = players.begin();
 			}
 
-			saveMotdNum();
 			saveGameState();
 
 			g_dispatcher.addTask(
@@ -179,10 +172,29 @@ void Game::saveGameState()
 
 	std::cout << "Saving server..." << std::endl;
 
+	int64_t start = OTSYS_TIME();
+	int64_t count = players.size();
+
 	for (const auto& it : players) {
 		it.second->loginPosition = it.second->getPosition();
 		IOLoginData::savePlayer(it.second);
 	}
+
+	std::cout << "> Saved " << count << " players in: " <<
+	          (OTSYS_TIME() - start) / (1000.) << " s" << std::endl;
+	
+	start = OTSYS_TIME();
+	count = 0;
+
+	for (const auto& it : pokemons) {
+		if (it.second->getGUID() != 0) {
+			IOLoginData::savePokemon(it.second);
+			count++;
+		}		
+	}
+
+	std::cout << "> Saved " << count << " pokemon in: " <<
+	          (OTSYS_TIME() - start) / (1000.) << " s" << std::endl;
 
 	Map::save();
 
@@ -195,8 +207,8 @@ void Game::saveGameState()
 
 bool Game::loadMainMap(const std::string& filename)
 {
-	Monster::despawnRange = g_config.getNumber(ConfigManager::DEFAULT_DESPAWNRANGE);
-	Monster::despawnRadius = g_config.getNumber(ConfigManager::DEFAULT_DESPAWNRADIUS);
+	Pokemon::despawnRange = g_config.getNumber(ConfigManager::DEFAULT_DESPAWNRANGE);
+	Pokemon::despawnRadius = g_config.getNumber(ConfigManager::DEFAULT_DESPAWNRADIUS);
 	return map.loadMap("data/world/" + filename + ".otbm", true);
 }
 
@@ -365,25 +377,50 @@ Creature* Game::getCreatureByID(uint32_t id)
 {
 	if (id <= Player::playerAutoID) {
 		return getPlayerByID(id);
-	} else if (id <= Monster::monsterAutoID) {
-		return getMonsterByID(id);
+	} else if (id <= Pokemon::pokemonAutoID) {
+		return getPokemonByID(id);
 	} else if (id <= Npc::npcAutoID) {
 		return getNpcByID(id);
 	}
 	return nullptr;
 }
 
-Monster* Game::getMonsterByID(uint32_t id)
+Pokemon* Game::getPokemonByID(uint32_t id)
 {
 	if (id == 0) {
 		return nullptr;
 	}
 
-	auto it = monsters.find(id);
-	if (it == monsters.end()) {
+	auto it = pokemons.find(id);
+	if (it == pokemons.end()) {
 		return nullptr;
 	}
 	return it->second;
+}
+
+Pokemon* Game::getPokemonByGUID(const uint32_t& guid)
+{
+	if (guid == 0) {
+		return nullptr;
+	}
+
+	for (const auto& it : pokemons) {
+		if (guid == it.second->getGUID()) {
+			return it.second;
+		}
+	}
+
+	Pokemon* pokemon = new Pokemon();
+	if (!IOLoginData::loadPokemonById(pokemon, guid)) {
+		delete pokemon;
+		return nullptr;
+	}
+
+	pokemon->incrementReferenceCounter();
+	pokemon->setID();
+	pokemon->addList();
+	pokemon->setDropLoot(false);
+	return pokemon;
 }
 
 Npc* Game::getNpcByID(uint32_t id)
@@ -431,7 +468,7 @@ Creature* Game::getCreatureByName(const std::string& s)
 		}
 	}
 
-	for (const auto& it : monsters) {
+	for (const auto& it : pokemons) {
 		if (lowerCaseName == asLowerCaseString(it.second->getName())) {
 			return it.second;
 		}
@@ -520,7 +557,7 @@ Player* Game::getPlayerByAccount(uint32_t acc)
 
 bool Game::internalPlaceCreature(Creature* creature, const Position& pos, bool extendedPos /*=false*/, bool forced /*= false*/)
 {
-	if (creature->getParent() != nullptr) {
+	if (creature->getParent() != nullptr && !creature->isPersistent()) {
 		return false;
 	}
 
@@ -534,7 +571,7 @@ bool Game::internalPlaceCreature(Creature* creature, const Position& pos, bool e
 	return true;
 }
 
-bool Game::placeCreature(Creature* creature, const Position& pos, bool extendedPos /*=false*/, bool forced /*= false*/)
+bool Game::placeCreature(Creature* creature, const Position& pos, bool extendedPos /*=false*/, bool forced /*= false*/, bool sendEffect /*= true*/)
 {
 	if (!internalPlaceCreature(creature, pos, extendedPos, forced)) {
 		return false;
@@ -544,7 +581,7 @@ bool Game::placeCreature(Creature* creature, const Position& pos, bool extendedP
 	map.getSpectators(spectators, creature->getPosition(), true);
 	for (Creature* spectator : spectators) {
 		if (Player* tmpPlayer = spectator->getPlayer()) {
-			tmpPlayer->sendCreatureAppear(creature, creature->getPosition(), true);
+			tmpPlayer->sendCreatureAppear(creature, creature->getPosition(), sendEffect);
 		}
 	}
 
@@ -556,6 +593,13 @@ bool Game::placeCreature(Creature* creature, const Position& pos, bool extendedP
 
 	addCreatureCheck(creature);
 	creature->onPlacedCreature();
+	creature->setNotRemoved();
+
+	if (Pokemon* pokemon = creature->getPokemon()) {
+		if (pokemon->belongsToPlayer()) {
+			pokemon->getTrainer()->sendPokemonMoves(pokemon);
+		}
+	}
 	return true;
 }
 
@@ -574,6 +618,13 @@ bool Game::removeCreature(Creature* creature, bool isLogout/* = true*/)
 	for (Creature* spectator : spectators) {
 		if (Player* player = spectator->getPlayer()) {
 			oldStackPosVector.push_back(player->canSeeCreature(creature) ? tile->getStackposOfCreature(player, creature) : -1);
+		}
+	}
+
+	// remove move bar
+	if (Pokemon* pokemon = creature->getPokemon()) {
+		if (pokemon->belongsToPlayer()) {
+			pokemon->getTrainer()->sendPokemonMoves(nullptr);
 		}
 	}
 
@@ -598,7 +649,7 @@ bool Game::removeCreature(Creature* creature, bool isLogout/* = true*/)
 
 	creature->removeList();
 	creature->setRemoved();
-	ReleaseCreature(creature);
+	ReleaseCreature(creature);		
 
 	removeCreatureCheck(creature);
 
@@ -610,7 +661,7 @@ bool Game::removeCreature(Creature* creature, bool isLogout/* = true*/)
 }
 
 void Game::playerMoveThing(uint32_t playerId, const Position& fromPos,
-                           uint16_t spriteId, uint8_t fromStackPos, const Position& toPos, uint8_t count)
+                           uint16_t spriteId, uint8_t fromStackPos, const Position& toPos, uint16_t count)
 {
 	Player* player = getPlayerByID(playerId);
 	if (!player) {
@@ -649,14 +700,14 @@ void Game::playerMoveThing(uint32_t playerId, const Position& fromPos,
 		} else {
 			playerMoveCreature(player, movingCreature, movingCreature->getPosition(), tile);
 		}
-	} else if (thing->getItem()) {
+	} else if (Item* item = thing->getItem()) {
 		Cylinder* toCylinder = internalGetCylinder(player, toPos);
 		if (!toCylinder) {
 			player->sendCancelMessage(RETURNVALUE_NOTPOSSIBLE);
 			return;
 		}
 
-		playerMoveItem(player, fromPos, spriteId, fromStackPos, toPos, count, thing->getItem(), toCylinder);
+		playerMoveItem(player, fromPos, spriteId, fromStackPos, toPos, count, item, toCylinder);
 	}
 }
 
@@ -856,7 +907,7 @@ ReturnValue Game::internalMoveCreature(Creature& creature, Tile& toTile, uint32_
 	return RETURNVALUE_NOERROR;
 }
 
-void Game::playerMoveItemByPlayerID(uint32_t playerId, const Position& fromPos, uint16_t spriteId, uint8_t fromStackPos, const Position& toPos, uint8_t count)
+void Game::playerMoveItemByPlayerID(uint32_t playerId, const Position& fromPos, uint16_t spriteId, uint8_t fromStackPos, const Position& toPos, uint16_t count)
 {
 	Player* player = getPlayerByID(playerId);
 	if (!player) {
@@ -866,7 +917,7 @@ void Game::playerMoveItemByPlayerID(uint32_t playerId, const Position& fromPos, 
 }
 
 void Game::playerMoveItem(Player* player, const Position& fromPos,
-                          uint16_t spriteId, uint8_t fromStackPos, const Position& toPos, uint8_t count, Item* item, Cylinder* toCylinder)
+                          uint16_t spriteId, uint8_t fromStackPos, const Position& toPos, uint16_t count, Item* item, Cylinder* toCylinder)
 {
 	if (!player->canDoAction()) {
 		uint32_t delay = player->getNextActionTime();
@@ -918,16 +969,15 @@ void Game::playerMoveItem(Player* player, const Position& fromPos,
 		}
 	}
 
-	if (!item->isPushable() || item->hasAttribute(ITEM_ATTRIBUTE_UNIQUEID)) {
-		player->sendCancelMessage(RETURNVALUE_NOTMOVEABLE);
-		return;
-	}
-
 	const Position& playerPos = player->getPosition();
 	const Position& mapFromPos = fromCylinder->getTile()->getPosition();
 	if (playerPos.z != mapFromPos.z) {
 		player->sendCancelMessage(playerPos.z > mapFromPos.z ? RETURNVALUE_FIRSTGOUPSTAIRS : RETURNVALUE_FIRSTGODOWNSTAIRS);
 		return;
+	}
+
+	if (item->isStackable() && count > item->getItemMaxCount()) {
+		count = item->getItemMaxCount();
 	}
 
 	if (!Position::areInRange<1, 1>(playerPos, mapFromPos)) {
@@ -1068,6 +1118,10 @@ ReturnValue Game::internalMoveItem(Cylinder* fromCylinder, Cylinder* toCylinder,
 		return RETURNVALUE_NOERROR;    //silently ignore move
 	}
 
+	if (toItem && item->equals(toItem) && toItem->getItemCount() >= item->getItemMaxCount()) {
+		toItem = nullptr;
+	}
+	
 	//check if we can add this item
 	ReturnValue ret = toCylinder->queryAdd(index, *item, count, flags, actor);
 	if (ret == RETURNVALUE_NEEDEXCHANGE) {
@@ -1097,6 +1151,9 @@ ReturnValue Game::internalMoveItem(Cylinder* fromCylinder, Cylinder* toCylinder,
 				}
 
 				ret = toCylinder->queryAdd(index, *item, count, flags);
+
+				transformPokeball(fromCylinder, toCylinder, toItem);
+
 				toItem = nullptr;
 			}
 		}
@@ -1153,7 +1210,7 @@ ReturnValue Game::internalMoveItem(Cylinder* fromCylinder, Cylinder* toCylinder,
 		uint32_t n;
 
 		if (item->equals(toItem)) {
-			n = std::min<uint32_t>(100 - toItem->getItemCount(), m);
+			n = std::min<uint32_t>(item->getItemMaxCount() - toItem->getItemCount(), m);
 			toCylinder->updateThing(toItem, toItem->getID(), toItem->getItemCount() + n);
 			updateItem = toItem;
 		} else {
@@ -1209,6 +1266,8 @@ ReturnValue Game::internalMoveItem(Cylinder* fromCylinder, Cylinder* toCylinder,
 		return retMaxCount;
 	}
 
+	transformPokeball(fromCylinder, toCylinder, item);
+
 	return ret;
 }
 
@@ -1253,7 +1312,7 @@ ReturnValue Game::internalAddItem(Cylinder* toCylinder, Item* item, int32_t inde
 
 	if (item->isStackable() && item->equals(toItem)) {
 		uint32_t m = std::min<uint32_t>(item->getItemCount(), maxQueryCount);
-		uint32_t n = std::min<uint32_t>(100 - toItem->getItemCount(), m);
+		uint32_t n = std::min<uint32_t>(item->getItemMaxCount() - toItem->getItemCount(), m);
 
 		toCylinder->updateThing(toItem, toItem->getID(), toItem->getItemCount() + n);
 
@@ -1409,6 +1468,63 @@ Item* Game::findItemOfType(Cylinder* cylinder, uint16_t itemId,
 	return nullptr;
 }
 
+
+
+uint16_t Game::findQuantityOfPokeballs(const Cylinder* cylinder, bool limited) const
+{
+	if (cylinder == nullptr) {
+		return 0;
+	}
+
+	uint16_t count = 0;
+	std::vector<Container*> containers;
+	for (size_t i = cylinder->getFirstIndex(), j = cylinder->getLastIndex(); i < j; ++i) {
+		Thing* thing = cylinder->getThing(i);
+		if (!thing) {
+			continue;
+		}
+
+		Item* item = thing->getItem();
+		if (!item) {
+			continue;
+		}
+
+		if (item->hasAttribute(ITEM_ATTRIBUTE_POKEMONID)) {
+			count += 1;
+		}
+
+		if (limited && count > 6) {
+			return count;
+		}
+
+		Container* container = item->getContainer();
+		if (container) {
+			containers.push_back(container);
+		}
+	}
+
+	size_t i = 0;
+	while (i < containers.size()) {
+		Container* container = containers[i++];
+		for (Item* item : container->getItemList()) {
+			if (item->hasAttribute(ITEM_ATTRIBUTE_POKEMONID)) {
+				count += 1;
+			}
+
+			if (limited && count > 6) {
+				return count;
+			}
+
+			Container* subContainer = item->getContainer();
+			if (subContainer) {
+				containers.push_back(subContainer);
+			}
+		}
+	}
+
+	return count;
+}
+
 bool Game::removeMoney(Cylinder* cylinder, uint64_t money, uint32_t flags /*= 0*/)
 {
 	if (cylinder == nullptr) {
@@ -1421,7 +1537,7 @@ bool Game::removeMoney(Cylinder* cylinder, uint64_t money, uint32_t flags /*= 0*
 
 	std::vector<Container*> containers;
 
-	std::multimap<uint32_t, Item*> moneyMap;
+	std::multimap<uint64_t, Item*> moneyMap;
 	uint64_t moneyCount = 0;
 
 	for (size_t i = cylinder->getFirstIndex(), j = cylinder->getLastIndex(); i < j; ++i) {
@@ -1439,7 +1555,7 @@ bool Game::removeMoney(Cylinder* cylinder, uint64_t money, uint32_t flags /*= 0*
 		if (container) {
 			containers.push_back(container);
 		} else {
-			const uint32_t worth = item->getWorth();
+			const uint64_t worth = item->getWorth();
 			if (worth != 0) {
 				moneyCount += worth;
 				moneyMap.emplace(worth, item);
@@ -1455,7 +1571,7 @@ bool Game::removeMoney(Cylinder* cylinder, uint64_t money, uint32_t flags /*= 0*
 			if (tmpContainer) {
 				containers.push_back(tmpContainer);
 			} else {
-				const uint32_t worth = item->getWorth();
+				const uint64_t worth = item->getWorth();
 				if (worth != 0) {
 					moneyCount += worth;
 					moneyMap.emplace(worth, item);
@@ -1474,8 +1590,8 @@ bool Game::removeMoney(Cylinder* cylinder, uint64_t money, uint32_t flags /*= 0*
 			internalRemoveItem(item);
 			money -= moneyEntry.first;
 		} else if (moneyEntry.first > money) {
-			const uint32_t worth = moneyEntry.first / item->getItemCount();
-			const uint32_t removeCount = std::ceil(money / static_cast<double>(worth));
+			const uint64_t worth = moneyEntry.first / item->getItemCount();
+			const uint64_t removeCount = std::ceil(money / static_cast<double>(worth));
 
 			addMoney(cylinder, (worth * removeCount) - money, flags);
 			internalRemoveItem(item, removeCount);
@@ -1494,41 +1610,68 @@ void Game::addMoney(Cylinder* cylinder, uint64_t money, uint32_t flags /*= 0*/)
 		return;
 	}
 
-	uint32_t crystalCoins = money / 10000;
-	money -= crystalCoins * 10000;
-	while (crystalCoins > 0) {
-		const uint16_t count = std::min<uint32_t>(100, crystalCoins);
+	uint64_t millionDollarNotes = money / 100000000;
+	money -= millionDollarNotes * 100000000;
+	while (millionDollarNotes > 0) {
+		const uint16_t count = std::min<uint32_t>(Item::items[ITEM_MILLION_DOLLAR_NOTE].getItemMaxCount(), millionDollarNotes);
 
-		Item* remaindItem = Item::CreateItem(ITEM_CRYSTAL_COIN, count);
+		Item* remaindItem = Item::CreateItem(ITEM_MILLION_DOLLAR_NOTE, count);
 
 		ReturnValue ret = internalAddItem(cylinder, remaindItem, INDEX_WHEREEVER, flags);
 		if (ret != RETURNVALUE_NOERROR) {
 			internalAddItem(cylinder->getTile(), remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
 		}
 
-		crystalCoins -= count;
+		millionDollarNotes -= count;
 	}
 
-	uint16_t platinumCoins = money / 100;
-	if (platinumCoins != 0) {
-		Item* remaindItem = Item::CreateItem(ITEM_PLATINUM_COIN, platinumCoins);
+	uint32_t tenThousandDollarNotes = money / 1000000;
+	if (tenThousandDollarNotes != 0) {
+		Item* remaindItem = Item::CreateItem(ITEM_TEN_THOUSAND_DOLLAR_NOTE, tenThousandDollarNotes);
 
 		ReturnValue ret = internalAddItem(cylinder, remaindItem, INDEX_WHEREEVER, flags);
 		if (ret != RETURNVALUE_NOERROR) {
 			internalAddItem(cylinder->getTile(), remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
 		}
 
-		money -= platinumCoins * 100;
+		money -= tenThousandDollarNotes * 1000000;
+	}
+
+	uint16_t hundredDollarNotes = money / 10000;
+	if (hundredDollarNotes != 0) {
+		Item* remaindItem = Item::CreateItem(ITEM_HUNDRED_DOLLAR_NOTE, hundredDollarNotes);
+
+		ReturnValue ret = internalAddItem(cylinder, remaindItem, INDEX_WHEREEVER, flags);
+		if (ret != RETURNVALUE_NOERROR) {
+			internalAddItem(cylinder->getTile(), remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
+		}
+
+		money -= hundredDollarNotes * 10000;
+	}
+
+	uint16_t dollarNotes = money / 100;
+	if (dollarNotes != 0) {
+		Item* remaindItem = Item::CreateItem(ITEM_DOLLAR_NOTE, dollarNotes);
+
+		ReturnValue ret = internalAddItem(cylinder, remaindItem, INDEX_WHEREEVER, flags);
+		if (ret != RETURNVALUE_NOERROR) {
+			internalAddItem(cylinder->getTile(), remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
+		}
+
+		money -= dollarNotes * 100;
 	}
 
 	if (money != 0) {
-		Item* remaindItem = Item::CreateItem(ITEM_GOLD_COIN, money);
+		Item* remaindItem = Item::CreateItem(ITEM_COIN, money);
 
 		ReturnValue ret = internalAddItem(cylinder, remaindItem, INDEX_WHEREEVER, flags);
 		if (ret != RETURNVALUE_NOERROR) {
 			internalAddItem(cylinder->getTile(), remaindItem, INDEX_WHEREEVER, FLAG_NOLIMIT);
 		}
 	}
+
+	Player* player = static_cast<Player*>(cylinder);
+	player->sendPokemonEffect(CONST_ME_EMOT_MONEY);
 }
 
 Item* Game::transformItem(Item* item, uint16_t newId, int32_t newCount /*= -1*/)
@@ -1589,7 +1732,7 @@ Item* Game::transformItem(Item* item, uint16_t newId, int32_t newCount /*= -1*/)
 
 	if (curType.type == newType.type) {
 		//Both items has the same type so we can safely change id/subtype
-		if (newCount == 0 && (item->isStackable() || item->hasAttribute(ITEM_ATTRIBUTE_CHARGES))) {
+		if (newCount == 0 && (item->isStackable())) {
 			if (item->isStackable()) {
 				internalRemoveItem(item);
 				return nullptr;
@@ -1706,26 +1849,24 @@ Item* searchForItem(Container* container, uint16_t itemId)
 slots_t getSlotType(const ItemType& it)
 {
 	slots_t slot = CONST_SLOT_RIGHT;
-	if (it.weaponType != WeaponType_t::WEAPON_SHIELD) {
-		int32_t slotPosition = it.slotPosition;
+	int32_t slotPosition = it.slotPosition;
 
-		if (slotPosition & SLOTP_HEAD) {
-			slot = CONST_SLOT_HEAD;
-		} else if (slotPosition & SLOTP_NECKLACE) {
-			slot = CONST_SLOT_NECKLACE;
-		} else if (slotPosition & SLOTP_ARMOR) {
-			slot = CONST_SLOT_ARMOR;
-		} else if (slotPosition & SLOTP_LEGS) {
-			slot = CONST_SLOT_LEGS;
-		} else if (slotPosition & SLOTP_FEET) {
-			slot = CONST_SLOT_FEET ;
-		} else if (slotPosition & SLOTP_RING) {
-			slot = CONST_SLOT_RING;
-		} else if (slotPosition & SLOTP_AMMO) {
-			slot = CONST_SLOT_AMMO;
-		} else if (slotPosition & SLOTP_TWO_HAND || slotPosition & SLOTP_LEFT) {
-			slot = CONST_SLOT_LEFT;
-		}
+	if (slotPosition & SLOTP_ROD) {
+		slot = CONST_SLOT_ROD;
+	} else if (slotPosition & SLOTP_POKEDEX) {
+		slot = CONST_SLOT_POKEDEX;
+	} else if (slotPosition & SLOTP_ORDER) {
+		slot = CONST_SLOT_ORDER;
+	} else if (slotPosition & SLOTP_PORTRAIT) {
+		slot = CONST_SLOT_PORTRAIT;
+	} else if (slotPosition & SLOTP_POKEBALL) {
+		slot = CONST_SLOT_POKEBALL ;
+	} else if (slotPosition & SLOTP_PICK) {
+		slot = CONST_SLOT_PICK;
+	} else if (slotPosition & SLOTP_SUPPORT) {
+		slot = CONST_SLOT_SUPPORT;
+	} else if (slotPosition & SLOTP_TWO_HAND || slotPosition & SLOTP_LEFT) {
+		slot = CONST_SLOT_LEFT;
 	}
 
 	return slot;
@@ -1754,7 +1895,7 @@ void Game::playerEquipItem(uint32_t playerId, uint16_t spriteId)
 
 	Item* slotItem = player->getInventoryItem(slot);
 	Item* equipItem = searchForItem(backpack, it.id);
-	if (slotItem && slotItem->getID() == it.id && (!it.stackable || slotItem->getItemCount() == 100 || !equipItem)) {
+	if (slotItem && slotItem->getID() == it.id && (!it.stackable || slotItem->getItemCount() == it.getItemMaxCount() || !equipItem)) {
 		internalMoveItem(slotItem->getParent(), player, CONST_SLOT_WHEREEVER, slotItem, slotItem->getItemCount(), nullptr);
 	} else if (equipItem) {
 		internalMoveItem(equipItem->getParent(), player, slot, equipItem, equipItem->getItemCount(), nullptr);
@@ -2054,6 +2195,30 @@ void Game::playerUseItemEx(uint32_t playerId, const Position& fromPos, uint8_t f
 	player->resetIdleTime();
 	player->setNextActionTask(nullptr);
 
+	// Order
+	if ((item->getSlotPosition() & SLOTP_ORDER)) {
+		player->orderPokemon(toPos, nullptr);
+		return;
+	}
+
+	// Catch
+	if (item->isUnusedPokeball()) {
+		g_pokeballs->usePokeball(player, item, fromPos, toPos, isHotkey);
+		return;
+	}
+
+	// Food
+	if (item->isFood()) {
+		g_foods->useFood(player, fromPos, toPos, item, isHotkey, nullptr);
+		return;
+	}
+
+	// Evolution
+	if (item->isEvolutionStone()) {
+		player->evolvePokemon(item, nullptr);
+		return;
+	}
+
 	g_actions->useItemEx(player, fromPos, toPos, toStackPos, item, isHotkey);
 }
 
@@ -2113,6 +2278,12 @@ void Game::playerUseItem(uint32_t playerId, const Position& pos, uint8_t stackPo
 
 	player->resetIdleTime();
 	player->setNextActionTask(nullptr);
+
+	// GoBack
+	if (item->isUsedPokeball()) {
+		player->gobackPokemon(item);
+		return;
+	}
 
 	g_actions->useItem(player, pos, index, item, isHotkey);
 }
@@ -2208,6 +2379,30 @@ void Game::playerUseWithCreature(uint32_t playerId, const Position& fromPos, uin
 
 	player->resetIdleTime();
 	player->setNextActionTask(nullptr);
+
+	// Order
+	if ((item->getSlotPosition() & SLOTP_ORDER)) {
+		player->orderPokemon(toPos, creature);
+		return;
+	}
+
+	// Catch
+	if (item->isUnusedPokeball()) {
+		g_pokeballs->usePokeball(player, item, fromPos, toPos, isHotkey);
+		return;
+	}
+
+	// Food
+	if (item->isFood()) {
+		g_foods->useFood(player, fromPos, toPos, item, isHotkey, creature);
+		return;
+	}
+
+	// Evolution
+	if (item->isEvolutionStone()) {
+		player->evolvePokemon(item, creature);
+		return;
+	}
 
 	g_actions->useItemEx(player, fromPos, creature->getPosition(), creature->getParent()->getThingIndex(creature), item, isHotkey, creature);
 }
@@ -2566,8 +2761,8 @@ void Game::playerRequestTrade(uint32_t playerId, const Position& pos, uint8_t st
 	}
 
 	Container* tradeContainer = tradeItem->getContainer();
-	if (tradeContainer && tradeContainer->getItemHoldingCount() + 1 > 100) {
-		player->sendTextMessage(MESSAGE_INFO_DESCR, "You can not trade more than 100 items.");
+	if (tradeContainer && tradeContainer->getItemHoldingCount() + 1 > uint16_t(g_config.getNumber(ConfigManager::MAX_TRADE_ITEMS))) {
+		player->sendTextMessage(MESSAGE_INFO_DESCR, std::string("You can not trade more than ") + std::to_string(g_config.getNumber(ConfigManager::MAX_TRADE_ITEMS)) + std::string(" items."));
 		return;
 	}
 
@@ -2738,6 +2933,10 @@ std::string Game::getTradeErrorDescription(ReturnValue ret, Item* item)
 			}
 
 			return ss.str();
+		} else if (ret == RETURNVALUE_MAXPOKEMONINBAG) {
+			std::ostringstream ss;
+			ss << "You can only have 6 Pokemon.";
+			return ss.str();
 		}
 	}
 	return "Trade could not be completed.";
@@ -2853,10 +3052,15 @@ void Game::internalCloseTrade(Player* player)
 	}
 }
 
-void Game::playerPurchaseItem(uint32_t playerId, uint16_t spriteId, uint8_t count, uint8_t amount,
+void Game::playerPurchaseItem(uint32_t playerId, uint16_t spriteId, uint16_t count, uint16_t amount,
                               bool ignoreCap/* = false*/, bool inBackpacks/* = false*/)
-{
-	if (amount == 0 || amount > 100) {
+{	
+	const ItemType& it = Item::items.getItemIdByClientId(spriteId);
+	if (it.id == 0) {
+		return;
+	}
+	
+	if (amount == 0 || amount > it.getItemMaxCount()) {
 		return;
 	}
 
@@ -2872,12 +3076,8 @@ void Game::playerPurchaseItem(uint32_t playerId, uint16_t spriteId, uint8_t coun
 		return;
 	}
 
-	const ItemType& it = Item::items.getItemIdByClientId(spriteId);
-	if (it.id == 0) {
-		return;
-	}
 
-	uint8_t subType;
+	uint16_t subType;
 	if (it.isSplash() || it.isFluidContainer()) {
 		subType = clientFluidToServer(count);
 	} else {
@@ -2891,9 +3091,14 @@ void Game::playerPurchaseItem(uint32_t playerId, uint16_t spriteId, uint8_t coun
 	merchant->onPlayerTrade(player, onBuy, it.id, subType, amount, ignoreCap, inBackpacks);
 }
 
-void Game::playerSellItem(uint32_t playerId, uint16_t spriteId, uint8_t count, uint8_t amount, bool ignoreEquipped)
+void Game::playerSellItem(uint32_t playerId, uint16_t spriteId, uint16_t count, uint16_t amount, bool ignoreEquipped)
 {
-	if (amount == 0 || amount > 100) {
+	const ItemType& it = Item::items.getItemIdByClientId(spriteId);
+	if (it.id == 0) {
+		return;
+	}
+
+	if (amount == 0 || amount > it.getItemMaxCount()) {
 		return;
 	}
 
@@ -2907,14 +3112,9 @@ void Game::playerSellItem(uint32_t playerId, uint16_t spriteId, uint8_t count, u
 	Npc* merchant = player->getShopOwner(onBuy, onSell);
 	if (!merchant) {
 		return;
-	}
+	}	
 
-	const ItemType& it = Item::items.getItemIdByClientId(spriteId);
-	if (it.id == 0) {
-		return;
-	}
-
-	uint8_t subType;
+	uint16_t subType;
 	if (it.isSplash() || it.isFluidContainer()) {
 		subType = clientFluidToServer(count);
 	} else {
@@ -2934,7 +3134,7 @@ void Game::playerCloseShop(uint32_t playerId)
 	player->closeShopWindow();
 }
 
-void Game::playerLookInShop(uint32_t playerId, uint16_t spriteId, uint8_t count)
+void Game::playerLookInShop(uint32_t playerId, uint16_t spriteId, uint16_t count)
 {
 	Player* player = getPlayerByID(playerId);
 	if (!player) {
@@ -3098,7 +3298,7 @@ void Game::playerFollowCreature(uint32_t playerId, uint32_t creatureId)
 	player->setFollowCreature(getCreatureByID(creatureId));
 }
 
-void Game::playerSetFightModes(uint32_t playerId, fightMode_t fightMode, bool chaseMode, bool secureMode)
+void Game::playerSetFightModes(uint32_t playerId, fightMode_t fightMode, bool chaseMode)
 {
 	Player* player = getPlayerByID(playerId);
 	if (!player) {
@@ -3107,7 +3307,6 @@ void Game::playerSetFightModes(uint32_t playerId, fightMode_t fightMode, bool ch
 
 	player->setFightMode(fightMode);
 	player->setChaseMode(chaseMode);
-	player->setSecureMode(secureMode);
 }
 
 void Game::playerRequestAddVip(uint32_t playerId, const std::string& name)
@@ -3297,9 +3496,9 @@ void Game::playerSay(uint32_t playerId, uint16_t channelId, SpeakClasses type,
 
 	player->resetIdleTime();
 
-	if (playerSaySpell(player, type, text)) {
-		return;
-	}
+  	if (playerSayTalkAction(player, type, text)) { 
+    	return; 
+  	} 
 
 	uint32_t muteTime = player->isMuted();
 	if (muteTime > 0) {
@@ -3354,28 +3553,16 @@ void Game::playerSay(uint32_t playerId, uint16_t channelId, SpeakClasses type,
 	}
 }
 
-bool Game::playerSaySpell(Player* player, SpeakClasses type, const std::string& text)
-{
-	std::string words = text;
+bool Game::playerSayTalkAction(Player* player, SpeakClasses type, const std::string& text) 
+{ 
+  	std::string words = text; 
+ 
+  	TalkActionResult_t result = g_talkActions->playerSayTalkAction(player, type, words); 
+ 	if (result == TALKACTION_BREAK) { 
+    	return true; 
+  	}
 
-	TalkActionResult_t result = g_talkActions->playerSaySpell(player, type, words);
-	if (result == TALKACTION_BREAK) {
-		return true;
-	}
-
-	result = g_spells->playerSaySpell(player, words);
-	if (result == TALKACTION_BREAK) {
-		if (!g_config.getBoolean(ConfigManager::EMOTE_SPELLS)) {
-			return internalCreatureSay(player, TALKTYPE_SAY, words, false);
-		} else {
-			return internalCreatureSay(player, TALKTYPE_MONSTER_SAY, words, false);
-		}
-
-	} else if (result == TALKACTION_FAILED) {
-		return true;
-	}
-
-	return false;
+  	return false; 
 }
 
 void Game::playerWhisper(Player* player, const std::string& text)
@@ -3509,7 +3696,7 @@ bool Game::internalCreatureSay(Creature* creature, SpeakClasses type, const std:
 		// is used if available and if it can be used, else a local vector is
 		// used (hopefully the compiler will optimize away the construction of
 		// the temporary when it's not used).
-		if (type != TALKTYPE_YELL && type != TALKTYPE_MONSTER_YELL) {
+		if (type != TALKTYPE_YELL && type != TALKTYPE_POKEMON_YELL) {
 			map.getSpectators(spectators, *pos, false, false,
 			              Map::maxClientViewportX, Map::maxClientViewportX,
 			              Map::maxClientViewportY, Map::maxClientViewportY);
@@ -3654,6 +3841,18 @@ void Game::internalCreatureChangeVisible(Creature* creature, bool visible)
 	}
 }
 
+void Game::internalCreatureChangeName(Creature* creature, const std::string& name)
+{
+	creature->setName(name);
+
+	//send to clients
+	SpectatorHashSet spectators;
+	map.getSpectators(spectators, creature->getPosition(), true, true);
+	for (Creature* spectator : spectators) {
+		spectator->getPlayer()->sendCreatureChangeName(creature, name);
+	}
+}
+
 void Game::changeLight(const Creature* creature)
 {
 	//send to clients
@@ -3664,9 +3863,9 @@ void Game::changeLight(const Creature* creature)
 	}
 }
 
-bool Game::combatBlockHit(CombatDamage& damage, Creature* attacker, Creature* target, bool checkDefense, bool checkArmor, bool field)
+bool Game::combatBlockHit(CombatDamage& damage, Creature* attacker, Creature* target, bool field)
 {
-	if (damage.primary.type == COMBAT_NONE && damage.secondary.type == COMBAT_NONE) {
+	if (damage.type == COMBAT_NONE) {
 		return true;
 	}
 
@@ -3674,100 +3873,55 @@ bool Game::combatBlockHit(CombatDamage& damage, Creature* attacker, Creature* ta
 		return true;
 	}
 
-	if (damage.primary.value > 0) {
+	if (damage.value > 0) {
 		return false;
 	}
 
-	static const auto sendBlockEffect = [this](BlockType_t blockType, CombatType_t combatType, const Position& targetPos) {
-		if (blockType == BLOCK_DEFENSE) {
-			addMagicEffect(targetPos, CONST_ME_POFF);
-		} else if (blockType == BLOCK_ARMOR) {
-			addMagicEffect(targetPos, CONST_ME_BLOCKHIT);
-		} else if (blockType == BLOCK_IMMUNITY) {
-			uint8_t hitEffect = 0;
-			switch (combatType) {
-				case COMBAT_UNDEFINEDDAMAGE: {
-					return;
-				}
-				case COMBAT_ENERGYDAMAGE:
-				case COMBAT_FIREDAMAGE:
-				case COMBAT_PHYSICALDAMAGE:
-				case COMBAT_ICEDAMAGE:
-				case COMBAT_DEATHDAMAGE: {
-					hitEffect = CONST_ME_BLOCKHIT;
-					break;
-				}
-				case COMBAT_EARTHDAMAGE: {
-					hitEffect = CONST_ME_GREEN_RINGS;
-					break;
-				}
-				case COMBAT_HOLYDAMAGE: {
-					hitEffect = CONST_ME_HOLYDAMAGE;
-					break;
-				}
-				default: {
-					hitEffect = CONST_ME_POFF;
-					break;
-				}
-			}
-			addMagicEffect(targetPos, hitEffect);
+	if (attacker->getPokemon() && attacker->getPokemon()->getMaster() && attacker->getPokemon()->getMaster()->getPlayer()) {
+		Player* player = attacker->getPokemon()->getMaster()->getPlayer();
+		Clan* clan = player->getClan();
+
+		if (clan) {
+			damage.value *= clan->getTypeMultiplier(combatTypeToPokemonType(damage.type));
 		}
-	};
-
-	BlockType_t primaryBlockType, secondaryBlockType;
-	if (damage.primary.type != COMBAT_NONE) {
-		damage.primary.value = -damage.primary.value;
-		primaryBlockType = target->blockHit(attacker, damage.primary.type, damage.primary.value, checkDefense, checkArmor, field);
-
-		damage.primary.value = -damage.primary.value;
-		sendBlockEffect(primaryBlockType, damage.primary.type, target->getPosition());
-	} else {
-		primaryBlockType = BLOCK_NONE;
 	}
 
-	if (damage.secondary.type != COMBAT_NONE) {
-		damage.secondary.value = -damage.secondary.value;
-		secondaryBlockType = target->blockHit(attacker, damage.secondary.type, damage.secondary.value, false, false, field);
-
-		damage.secondary.value = -damage.secondary.value;
-		sendBlockEffect(secondaryBlockType, damage.secondary.type, target->getPosition());
+	BlockType_t blockType;
+	if (damage.type != COMBAT_NONE) {
+		damage.value = -damage.value;
+		blockType = target->blockHit(attacker, damage.type, damage.value, field);
+		damage.value = -damage.value;
 	} else {
-		secondaryBlockType = BLOCK_NONE;
+		blockType = BLOCK_NONE;
 	}
-	return (primaryBlockType != BLOCK_NONE) && (secondaryBlockType != BLOCK_NONE);
+
+	return (blockType != BLOCK_NONE);
 }
 
 void Game::combatGetTypeInfo(CombatType_t combatType, Creature* target, TextColor_t& color, uint8_t& effect)
 {
 	switch (combatType) {
 		case COMBAT_PHYSICALDAMAGE: {
-			Item* splash = nullptr;
-			switch (target->getRace()) {
-				case RACE_VENOM:
-					color = TEXTCOLOR_LIGHTGREEN;
-					effect = CONST_ME_HITBYPOISON;
-					splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_GREEN);
-					break;
-				case RACE_BLOOD:
+			switch (target->getBlood()) {
+				case BLOOD_RED:
 					color = TEXTCOLOR_RED;
 					effect = CONST_ME_DRAWBLOOD;
-					if (const Tile* tile = target->getTile()) {
-						if (!tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
-							splash = Item::CreateItem(ITEM_SMALLSPLASH, FLUID_BLOOD);
-						}
-					}
 					break;
-				case RACE_UNDEAD:
+				case BLOOD_GREEN:
+					color = TEXTCOLOR_LIGHTGREEN;
+					effect = CONST_ME_HITBYPOISON;
+					break;
+				case BLOOD_GRAY:
 					color = TEXTCOLOR_LIGHTGREY;
 					effect = CONST_ME_HITAREA;
 					break;
-				case RACE_FIRE:
-					color = TEXTCOLOR_ORANGE;
+				case BLOOD_BLUE:
+					color = TEXTCOLOR_BLUE;
 					effect = CONST_ME_DRAWBLOOD;
 					break;
-				case RACE_ENERGY:
+				case BLOOD_PURPLE:
 					color = TEXTCOLOR_ELECTRICPURPLE;
-					effect = CONST_ME_ENERGYHIT;
+					effect = CONST_ME_DRAWBLOOD;
 					break;
 				default:
 					color = TEXTCOLOR_NONE;
@@ -3775,56 +3929,123 @@ void Game::combatGetTypeInfo(CombatType_t combatType, Creature* target, TextColo
 					break;
 			}
 
-			if (splash) {
-				internalAddItem(target->getTile(), splash, INDEX_WHEREEVER, FLAG_NOLIMIT);
-				startDecay(splash);
-			}
-
 			break;
 		}
 
-		case COMBAT_ENERGYDAMAGE: {
-			color = TEXTCOLOR_ELECTRICPURPLE;
-			effect = CONST_ME_ENERGYHIT;
+		case COMBAT_NORMALDAMAGE: {
+			color = TEXTCOLOR_DARKGREEN;
+			effect = CONST_ME_NONE;
 			break;
 		}
 
-		case COMBAT_EARTHDAMAGE: {
-			color = TEXTCOLOR_LIGHTGREEN;
-			effect = CONST_ME_GREEN_RINGS;
+		case COMBAT_ELECTRICDAMAGE: {
+			color = TEXTCOLOR_YELLOW;
+			effect = CONST_ME_NONE;
 			break;
 		}
 
-		case COMBAT_DROWNDAMAGE: {
-			color = TEXTCOLOR_LIGHTBLUE;
-			effect = CONST_ME_LOSEENERGY;
+		case COMBAT_GRASSDAMAGE: {
+			color = TEXTCOLOR_GREEN;
+			effect = CONST_ME_NONE;
 			break;
 		}
+
+		case COMBAT_WATERDAMAGE: {
+			color = TEXTCOLOR_BLUE;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
 		case COMBAT_FIREDAMAGE: {
 			color = TEXTCOLOR_ORANGE;
-			effect = CONST_ME_HITBYFIRE;
+			effect = CONST_ME_NONE;
 			break;
 		}
+
 		case COMBAT_ICEDAMAGE: {
 			color = TEXTCOLOR_SKYBLUE;
-			effect = CONST_ME_ICEATTACK;
+			effect = CONST_ME_NONE;
 			break;
 		}
-		case COMBAT_HOLYDAMAGE: {
-			color = TEXTCOLOR_YELLOW;
-			effect = CONST_ME_HOLYDAMAGE;
+
+		case COMBAT_BUGDAMAGE: {
+			color = TEXTCOLOR_POOLGREEN;
+			effect = CONST_ME_NONE;
 			break;
 		}
-		case COMBAT_DEATHDAMAGE: {
-			color = TEXTCOLOR_DARKRED;
-			effect = CONST_ME_SMALLCLOUDS;
+
+		case COMBAT_POISONDAMAGE: {
+			color = TEXTCOLOR_DARKPURPLE;
+			effect = CONST_ME_NONE;
 			break;
 		}
+
+		case COMBAT_DARKDAMAGE: {
+			color = TEXTCOLOR_QUINCY;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
 		case COMBAT_LIFEDRAIN: {
 			color = TEXTCOLOR_RED;
-			effect = CONST_ME_MAGIC_RED;
+			effect = CONST_ME_NONE;
 			break;
 		}
+
+		case COMBAT_FAIRYDAMAGE: {
+			color = TEXTCOLOR_PINK;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_GHOSTDAMAGE: {
+			color = TEXTCOLOR_BUTTERFLYBUSH;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_FIGHTINGDAMAGE: {
+			color = TEXTCOLOR_DARKRED;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_GROUNDDAMAGE: {
+			color = TEXTCOLOR_LIGHTYELLOW;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_FLYINGDAMAGE: {
+			color = TEXTCOLOR_LIGHTPINK;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_PSYCHICDAMAGE: {
+			color = TEXTCOLOR_BRINKPINK;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_ROCKDAMAGE: {
+			color = TEXTCOLOR_BRASS;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_DRAGONDAMAGE: {
+			color = TEXTCOLOR_BLUEVIOLET;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
+		case COMBAT_STEELDAMAGE: {
+			color = TEXTCOLOR_LAVENDERGREY;
+			effect = CONST_ME_NONE;
+			break;
+		}
+
 		default: {
 			color = TEXTCOLOR_NONE;
 			effect = CONST_ME_NONE;
@@ -3836,22 +4057,19 @@ void Game::combatGetTypeInfo(CombatType_t combatType, Creature* target, TextColo
 bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage& damage)
 {
 	const Position& targetPos = target->getPosition();
-	if (damage.primary.value > 0) {
+	if (damage.value > 0) {
 		if (target->getHealth() <= 0) {
 			return false;
 		}
 
-		Player* attackerPlayer;
+		Pokemon* attackerPokemon;
 		if (attacker) {
-			attackerPlayer = attacker->getPlayer();
+			attackerPokemon = attacker->getPokemon();
 		} else {
-			attackerPlayer = nullptr;
+			attackerPokemon = nullptr;
 		}
 
-		Player* targetPlayer = target->getPlayer();
-		if (attackerPlayer && targetPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(targetPlayer) == SKULL_NONE) {
-			return false;
-		}
+		Pokemon* targetPokemon = target->getPokemon();
 
 		if (damage.origin != ORIGIN_NONE) {
 			const auto& events = target->getCreatureEvents(CREATURE_EVENT_HEALTHCHANGE);
@@ -3865,7 +4083,7 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 		}
 
 		int32_t realHealthChange = target->getHealth();
-		target->gainHealth(attacker, damage.primary.value);
+		target->gainHealth(attacker, damage.value);
 		realHealthChange = target->getHealth() - realHealthChange;
 
 		if (realHealthChange > 0 && !target->isInGhostMode()) {
@@ -3879,25 +4097,25 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 			TextMessage message;
 			message.position = targetPos;
 			message.primary.value = realHealthChange;
-			message.primary.color = TEXTCOLOR_PASTELRED;
+			message.primary.color = TEXTCOLOR_SKYBLUE;
 
 			SpectatorHashSet spectators;
 			map.getSpectators(spectators, targetPos, false, true);
 			for (Creature* spectator : spectators) {
 				Player* tmpPlayer = spectator->getPlayer();
-				if (tmpPlayer == attackerPlayer && attackerPlayer != targetPlayer) {
+				if (attackerPokemon && attackerPokemon->belongsToPlayer() && tmpPlayer == attackerPokemon->getMaster()->getPlayer() && attackerPokemon && attackerPokemon != targetPokemon) {
 					ss.str({});
-					ss << "You heal " << target->getNameDescription() << " for " << damageString;
+					ss << "Your pokemon heal " << target->getNameDescription() << " for " << damageString;
 					message.type = MESSAGE_HEALED;
 					message.text = ss.str();
-				} else if (tmpPlayer == targetPlayer) {
+				} else if (targetPokemon->belongsToPlayer() && tmpPlayer == targetPokemon->getMaster()->getPlayer()) {
 					ss.str({});
 					if (!attacker) {
-						ss << "You were healed";
-					} else if (targetPlayer == attackerPlayer) {
-						ss << "You healed yourself";
+						ss << "Your pokemon were healed";
+					} else if (targetPokemon == attackerPokemon) {
+						ss << "Your pokemon healed yourself";
 					} else {
-						ss << "You were healed by " << attacker->getNameDescription();
+						ss << "Your pokemon were healed by " << attacker->getNameDescription();
 					}
 					ss << " for " << damageString;
 					message.type = MESSAGE_HEALED;
@@ -3910,7 +4128,7 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 						} else {
 							ss << ucfirst(attacker->getNameDescription()) << " healed ";
 							if (attacker == target) {
-								ss << (targetPlayer ? (targetPlayer->getSex() == PLAYERSEX_FEMALE ? "herself" : "himself") : "itself");
+								ss << "itself";
 							} else {
 								ss << target->getNameDescription();
 							}
@@ -3927,140 +4145,33 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 	} else {
 		if (!target->isAttackable()) {
 			if (!target->isInGhostMode()) {
-				addMagicEffect(targetPos, CONST_ME_POFF);
+				addEffect(targetPos, CONST_ME_POFF);
 			}
 			return true;
 		}
 
-		Player* attackerPlayer;
+		Pokemon* attackerPokemon;
 		if (attacker) {
-			attackerPlayer = attacker->getPlayer();
+			attackerPokemon = attacker->getPokemon();
 		} else {
-			attackerPlayer = nullptr;
+			attackerPokemon = nullptr;
 		}
 
-		Player* targetPlayer = target->getPlayer();
-		if (attackerPlayer && targetPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(targetPlayer) == SKULL_NONE) {
-			return false;
-		}
+		Pokemon* targetPokemon = target->getPokemon();
 
-		damage.primary.value = std::abs(damage.primary.value);
-		damage.secondary.value = std::abs(damage.secondary.value);
+		damage.value = std::abs(damage.value);
 
-		int32_t healthChange = damage.primary.value + damage.secondary.value;
+		int32_t healthChange = damage.value;
 		if (healthChange == 0) {
 			return true;
-		}
-
-		if (attackerPlayer) {
-			uint16_t chance = attackerPlayer->getSpecialSkill(SPECIALSKILL_HITPOINTSLEECHCHANCE);
-			if (chance != 0 && uniform_random(1, 100) <= chance) {
-				CombatDamage lifeLeech;
-				lifeLeech.primary.value = std::round(healthChange * (attackerPlayer->getSpecialSkill(SPECIALSKILL_HITPOINTSLEECHAMOUNT) / 100.));
-				g_game.combatChangeHealth(nullptr, attackerPlayer, lifeLeech);
-			}
-
-			chance = attackerPlayer->getSpecialSkill(SPECIALSKILL_MANAPOINTSLEECHCHANCE);
-			if (chance != 0 && uniform_random(1, 100) <= chance) {
-				CombatDamage manaLeech;
-				manaLeech.primary.value = std::round(healthChange * (attackerPlayer->getSpecialSkill(SPECIALSKILL_MANAPOINTSLEECHAMOUNT) / 100.));
-				g_game.combatChangeMana(nullptr, attackerPlayer, manaLeech);
-			}
-
-			chance = attackerPlayer->getSpecialSkill(SPECIALSKILL_CRITICALHITCHANCE);
-			if (chance != 0 && uniform_random(1, 100) <= chance) {
-				healthChange += std::round(healthChange * (attackerPlayer->getSpecialSkill(SPECIALSKILL_CRITICALHITAMOUNT) / 100.));
-				g_game.addMagicEffect(target->getPosition(), CONST_ME_CRITICAL_DAMAGE);
-			}
 		}
 
 		TextMessage message;
 		message.position = targetPos;
 
 		SpectatorHashSet spectators;
-		if (targetPlayer && target->hasCondition(CONDITION_MANASHIELD) && damage.primary.type != COMBAT_UNDEFINEDDAMAGE) {
-			int32_t manaDamage = std::min<int32_t>(targetPlayer->getMana(), healthChange);
-			if (manaDamage != 0) {
-				if (damage.origin != ORIGIN_NONE) {
-					const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
-					if (!events.empty()) {
-						for (CreatureEvent* creatureEvent : events) {
-							creatureEvent->executeManaChange(target, attacker, damage);
-						}
-						healthChange = damage.primary.value + damage.secondary.value;
-						if (healthChange == 0) {
-							return true;
-						}
-						manaDamage = std::min<int32_t>(targetPlayer->getMana(), healthChange);
-					}
-				}
 
-				targetPlayer->drainMana(attacker, manaDamage);
-				map.getSpectators(spectators, targetPos, true, true);
-				addMagicEffect(spectators, targetPos, CONST_ME_LOSEENERGY);
-
-				std::stringstream ss;
-
-				std::string damageString = std::to_string(manaDamage);
-
-				std::string spectatorMessage;
-
-				message.primary.value = manaDamage;
-				message.primary.color = TEXTCOLOR_BLUE;
-
-				for (Creature* spectator : spectators) {
-					Player* tmpPlayer = spectator->getPlayer();
-					if (tmpPlayer->getPosition().z != targetPos.z) {
-						continue;
-					}
-
-					if (tmpPlayer == attackerPlayer && attackerPlayer != targetPlayer) {
-						ss.str({});
-						ss << ucfirst(target->getNameDescription()) << " loses " << damageString + " mana due to your attack.";
-						message.type = MESSAGE_DAMAGE_DEALT;
-						message.text = ss.str();
-					} else if (tmpPlayer == targetPlayer) {
-						ss.str({});
-						ss << "You lose " << damageString << " mana";
-						if (!attacker) {
-							ss << '.';
-						} else if (targetPlayer == attackerPlayer) {
-							ss << " due to your own attack.";
-						} else {
-							ss << " due to an attack by " << attacker->getNameDescription() << '.';
-						}
-						message.type = MESSAGE_DAMAGE_RECEIVED;
-						message.text = ss.str();
-					} else {
-						if (spectatorMessage.empty()) {
-							ss.str({});
-							ss << ucfirst(target->getNameDescription()) << " loses " << damageString + " mana";
-							if (attacker) {
-								ss << " due to ";
-								if (attacker == target) {
-									ss << (targetPlayer ? (targetPlayer->getSex() == PLAYERSEX_FEMALE ? "her own attack" : "his own attack") : "its own attack");
-								} else {
-									ss << "an attack by " << attacker->getNameDescription();
-								}
-							}
-							ss << '.';
-							spectatorMessage = ss.str();
-						}
-						message.type = MESSAGE_DAMAGE_OTHERS;
-						message.text = spectatorMessage;
-					}
-					tmpPlayer->sendTextMessage(message);
-				}
-
-				damage.primary.value -= manaDamage;
-				if (damage.primary.value < 0) {
-					damage.secondary.value = std::max<int32_t>(0, damage.secondary.value + damage.primary.value);
-					damage.primary.value = 0;
-				}
-			}
-		}
-
-		int32_t realDamage = damage.primary.value + damage.secondary.value;
+		int32_t realDamage = damage.value;
 		if (realDamage == 0) {
 			return true;
 		}
@@ -4077,14 +4188,11 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 		}
 
 		int32_t targetHealth = target->getHealth();
-		if (damage.primary.value >= targetHealth) {
-			damage.primary.value = targetHealth;
-			damage.secondary.value = 0;
-		} else if (damage.secondary.value) {
-			damage.secondary.value = std::min<int32_t>(damage.secondary.value, targetHealth - damage.primary.value);
+		if (damage.value >= targetHealth) {
+			damage.value = targetHealth;
 		}
 
-		realDamage = damage.primary.value + damage.secondary.value;
+		realDamage = damage.value;
 		if (realDamage == 0) {
 			return true;
 		}
@@ -4093,25 +4201,17 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 			map.getSpectators(spectators, targetPos, true, true);
 		}
 
-		message.primary.value = damage.primary.value;
-		message.secondary.value = damage.secondary.value;
+		message.primary.value = damage.value;
 
-		uint8_t hitEffect;
 		if (message.primary.value) {
-			combatGetTypeInfo(damage.primary.type, target, message.primary.color, hitEffect);
+			uint8_t hitEffect;
+			combatGetTypeInfo(damage.type, target, message.primary.color, hitEffect);
 			if (hitEffect != CONST_ME_NONE) {
-				addMagicEffect(spectators, targetPos, hitEffect);
+				addEffect(spectators, targetPos, hitEffect);
 			}
 		}
 
-		if (message.secondary.value) {
-			combatGetTypeInfo(damage.secondary.type, target, message.secondary.color, hitEffect);
-			if (hitEffect != CONST_ME_NONE) {
-				addMagicEffect(spectators, targetPos, hitEffect);
-			}
-		}
-
-		if (message.primary.color != TEXTCOLOR_NONE || message.secondary.color != TEXTCOLOR_NONE) {
+		if (message.primary.color != TEXTCOLOR_NONE) {
 			std::stringstream ss;
 
 			ss << realDamage << (realDamage != 1 ? " hitpoints" : " hitpoint");
@@ -4125,20 +4225,31 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 					continue;
 				}
 
-				if (tmpPlayer == attackerPlayer && attackerPlayer != targetPlayer) {
+				if (attackerPokemon && attackerPokemon->belongsToPlayer() && tmpPlayer == attackerPokemon->getMaster()->getPlayer() && targetPokemon != attackerPokemon) {
 					ss.str({});
-					ss << ucfirst(target->getNameDescription()) << " loses " << damageString << " due to your attack.";
+					if (targetPokemon->belongsToPlayer()) {
+						ss << targetPokemon->getMaster()->getName() << "'s " << targetPokemon->getName() << " ";
+					} else {
+						ss << targetPokemon->getNameDescription() << " ";
+					}
+					ss << " loses " << damageString << " due to your pokemon attack.";
 					message.type = MESSAGE_DAMAGE_DEALT;
 					message.text = ss.str();
-				} else if (tmpPlayer == targetPlayer) {
+				} else if (targetPokemon && targetPokemon->belongsToPlayer() && tmpPlayer == targetPokemon->getMaster()->getPlayer()) {
 					ss.str({});
-					ss << "You lose " << damageString;
+					ss << "Your pokemon lose " << damageString;
 					if (!attacker) {
 						ss << '.';
-					} else if (targetPlayer == attackerPlayer) {
-						ss << " due to your own attack.";
+					} else if (targetPokemon == attackerPokemon) {
+						ss << " due to its own attack.";
 					} else {
-						ss << " due to an attack by " << attacker->getNameDescription() << '.';
+						ss << " due to an attack by ";
+						if (attackerPokemon->belongsToPlayer()) {
+							ss << attacker->getMaster()->getName() << "'s " << attacker->getName();
+						} else {
+							ss << attacker->getNameDescription();
+						}
+						ss << ".";
 					}
 					message.type = MESSAGE_DAMAGE_RECEIVED;
 					message.text = ss.str();
@@ -4151,11 +4262,7 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 						if (attacker) {
 							ss << " due to ";
 							if (attacker == target) {
-								if (targetPlayer) {
-									ss << (targetPlayer->getSex() == PLAYERSEX_FEMALE ? "her own attack" : "his own attack");
-								} else {
-									ss << "its own attack";
-								}
+								ss << "its own attack";
 							} else {
 								ss << "an attack by " << attacker->getNameDescription();
 							}
@@ -4185,145 +4292,6 @@ bool Game::combatChangeHealth(Creature* attacker, Creature* target, CombatDamage
 	return true;
 }
 
-bool Game::combatChangeMana(Creature* attacker, Creature* target, CombatDamage& damage)
-{
-	Player* targetPlayer = target->getPlayer();
-	if (!targetPlayer) {
-		return true;
-	}
-
-	int32_t manaChange = damage.primary.value + damage.secondary.value;
-	if (manaChange > 0) {
-		if (attacker) {
-			const Player* attackerPlayer = attacker->getPlayer();
-			if (attackerPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(target) == SKULL_NONE) {
-				return false;
-			}
-		}
-
-		if (damage.origin != ORIGIN_NONE) {
-			const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
-			if (!events.empty()) {
-				for (CreatureEvent* creatureEvent : events) {
-					creatureEvent->executeManaChange(target, attacker, damage);
-				}
-				damage.origin = ORIGIN_NONE;
-				return combatChangeMana(attacker, target, damage);
-			}
-		}
-
-		int32_t realManaChange = targetPlayer->getMana();
-		targetPlayer->changeMana(manaChange);
-		realManaChange = targetPlayer->getMana() - realManaChange;
-
-		if (realManaChange > 0 && !targetPlayer->isInGhostMode()) {
-			TextMessage message(MESSAGE_HEALED, "You gained " + std::to_string(realManaChange) + " mana.");
-			message.position = target->getPosition();
-			message.primary.value = realManaChange;
-			message.primary.color = TEXTCOLOR_MAYABLUE;
-			targetPlayer->sendTextMessage(message);
-		}
-	} else {
-		const Position& targetPos = target->getPosition();
-		if (!target->isAttackable()) {
-			if (!target->isInGhostMode()) {
-				addMagicEffect(targetPos, CONST_ME_POFF);
-			}
-			return false;
-		}
-
-		Player* attackerPlayer;
-		if (attacker) {
-			attackerPlayer = attacker->getPlayer();
-		} else {
-			attackerPlayer = nullptr;
-		}
-
-		if (attackerPlayer && attackerPlayer->getSkull() == SKULL_BLACK && attackerPlayer->getSkullClient(targetPlayer) == SKULL_NONE) {
-			return false;
-		}
-
-		int32_t manaLoss = std::min<int32_t>(targetPlayer->getMana(), -manaChange);
-		BlockType_t blockType = target->blockHit(attacker, COMBAT_MANADRAIN, manaLoss);
-		if (blockType != BLOCK_NONE) {
-			addMagicEffect(targetPos, CONST_ME_POFF);
-			return false;
-		}
-
-		if (manaLoss <= 0) {
-			return true;
-		}
-
-		if (damage.origin != ORIGIN_NONE) {
-			const auto& events = target->getCreatureEvents(CREATURE_EVENT_MANACHANGE);
-			if (!events.empty()) {
-				for (CreatureEvent* creatureEvent : events) {
-					creatureEvent->executeManaChange(target, attacker, damage);
-				}
-				damage.origin = ORIGIN_NONE;
-				return combatChangeMana(attacker, target, damage);
-			}
-		}
-
-		targetPlayer->drainMana(attacker, manaLoss);
-
-		std::stringstream ss;
-
-		std::string damageString = std::to_string(manaLoss);
-
-		std::string spectatorMessage;
-
-		TextMessage message;
-		message.position = targetPos;
-		message.primary.value = manaLoss;
-		message.primary.color = TEXTCOLOR_BLUE;
-
-		SpectatorHashSet spectators;
-		map.getSpectators(spectators, targetPos, false, true);
-		for (Creature* spectator : spectators) {
-			Player* tmpPlayer = spectator->getPlayer();
-			if (tmpPlayer == attackerPlayer && attackerPlayer != targetPlayer) {
-				ss.str({});
-				ss << ucfirst(target->getNameDescription()) << " loses " << damageString << " mana due to your attack.";
-				message.type = MESSAGE_DAMAGE_DEALT;
-				message.text = ss.str();
-			} else if (tmpPlayer == targetPlayer) {
-				ss.str({});
-				ss << "You lose " << damageString << " mana";
-				if (!attacker) {
-					ss << '.';
-				} else if (targetPlayer == attackerPlayer) {
-					ss << " due to your own attack.";
-				} else {
-					ss << " mana due to an attack by " << attacker->getNameDescription() << '.';
-				}
-				message.type = MESSAGE_DAMAGE_RECEIVED;
-				message.text = ss.str();
-			} else {
-				if (spectatorMessage.empty()) {
-					ss.str({});
-					ss << ucfirst(target->getNameDescription()) << " loses " << damageString << " mana";
-					if (attacker) {
-						ss << " due to ";
-						if (attacker == target) {
-							ss << (targetPlayer ? (targetPlayer->getSex() == PLAYERSEX_FEMALE ? "her own attack" : "his own attack") : "its own attack");
-						} else {
-							ss << "an attack by " << attacker->getNameDescription();
-						}
-					}
-					ss << '.';
-					spectatorMessage = ss.str();
-				}
-				message.type = MESSAGE_DAMAGE_OTHERS;
-				message.text = spectatorMessage;
-			}
-			tmpPlayer->sendTextMessage(message);
-		}
-	}
-
-	return true;
-}
-
 void Game::addCreatureHealth(const Creature* target)
 {
 	SpectatorHashSet spectators;
@@ -4340,23 +4308,65 @@ void Game::addCreatureHealth(const SpectatorHashSet& spectators, const Creature*
 	}
 }
 
-void Game::addMagicEffect(const Position& pos, uint8_t effect)
+void Game::addEffect(const Position& pos, uint16_t effect)
 {
 	SpectatorHashSet spectators;
 	map.getSpectators(spectators, pos, true, true);
-	addMagicEffect(spectators, pos, effect);
+	addEffect(spectators, pos, effect);
 }
 
-void Game::addMagicEffect(const SpectatorHashSet& spectators, const Position& pos, uint8_t effect)
+void Game::addEffect(const SpectatorHashSet& spectators, const Position& pos, uint16_t effect)
 {
 	for (Creature* spectator : spectators) {
 		if (Player* tmpPlayer = spectator->getPlayer()) {
-			tmpPlayer->sendMagicEffect(pos, effect);
+			tmpPlayer->sendEffect(pos, effect);
 		}
 	}
 }
 
-void Game::addDistanceEffect(const Position& fromPos, const Position& toPos, uint8_t effect)
+void Game::addSoundToPlayer(uint32_t playerId, uint16_t sound, uint8_t channel /*= SOUND_CHANNEL_EFFECT*/)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	player->sendSound(player->getPosition(), sound, channel);
+}
+
+void Game::addSound(const Position& pos, uint16_t sound, uint8_t channel /*= SOUND_CHANNEL_EFFECT*/)
+{
+	SpectatorHashSet spectators;
+	map.getSpectators(spectators, pos, true, true);
+	addSound(spectators, pos, sound, channel);
+}
+
+void Game::addSound(const SpectatorHashSet& spectators, const Position& pos, uint16_t sound, uint8_t channel /*= SOUND_CHANNEL_EFFECT*/)
+{
+	for (Creature* spectator : spectators) {
+		if (Player* tmpPlayer = spectator->getPlayer()) {
+			tmpPlayer->sendSound(pos, sound, channel);
+		}
+	}
+}
+
+void Game::addAnimatedText(const Position& pos, uint8_t textColor, const std::string& text)
+{
+	SpectatorHashSet spectators;
+	map.getSpectators(spectators, pos, true, true);
+   	addAnimatedText(spectators, pos, textColor, text);
+}
+ 
+void Game::addAnimatedText(const SpectatorHashSet& spectators, const Position& pos, uint8_t textColor, const std::string& text)
+{
+   for (Creature* spectator : spectators) {
+     if (Player* tmpPlayer = spectator->getPlayer()) {
+       tmpPlayer->sendAnimatedText(pos, textColor, text);
+     }
+   }
+}
+
+void Game::addDistanceEffect(const Position& fromPos, const Position& toPos, uint16_t effect)
 {
 	SpectatorHashSet spectators;
 	map.getSpectators(spectators, fromPos, false, true);
@@ -4364,11 +4374,28 @@ void Game::addDistanceEffect(const Position& fromPos, const Position& toPos, uin
 	addDistanceEffect(spectators, fromPos, toPos, effect);
 }
 
-void Game::addDistanceEffect(const SpectatorHashSet& spectators, const Position& fromPos, const Position& toPos, uint8_t effect)
+void Game::addDistanceEffect(const SpectatorHashSet& spectators, const Position& fromPos, const Position& toPos, uint16_t effect)
 {
 	for (Creature* spectator : spectators) {
 		if (Player* tmpPlayer = spectator->getPlayer()) {
 			tmpPlayer->sendDistanceShoot(fromPos, toPos, effect);
+		}
+	}
+}
+
+void Game::addDistanceSound(const Position& fromPos, const Position& toPos, uint16_t sound, uint8_t channel /*= SOUND_CHANNEL_EFFECT */)
+{
+	SpectatorHashSet spectators;
+	map.getSpectators(spectators, fromPos, false, true);
+	map.getSpectators(spectators, toPos, false, true);
+	addDistanceSound(spectators, fromPos, toPos, sound, channel);
+}
+
+void Game::addDistanceSound(const SpectatorHashSet& spectators, const Position& fromPos, const Position& toPos, uint16_t sound, uint8_t channel /*= SOUND_CHANNEL_EFFECT */)
+{
+	for (Creature* spectator : spectators) {
+		if (Player* tmpPlayer = spectator->getPlayer()) {
+			tmpPlayer->sendDistanceSound(fromPos, toPos, sound, channel);
 		}
 	}
 }
@@ -4455,51 +4482,39 @@ void Game::checkLight()
 {
 	g_scheduler.addEvent(createSchedulerTask(EVENT_LIGHTINTERVAL, std::bind(&Game::checkLight, this)));
 
-	lightHour += lightHourDelta;
+	time_t theTime = time(NULL);
+  	struct tm *aTime = localtime(&theTime);
+	int gameHour = aTime->tm_hour;
+	lightMinutes = aTime->tm_min;
 
-	if (lightHour > 1440) {
-		lightHour -= 1440;
-	}
-
-	if (std::abs(lightHour - SUNRISE) < 2 * lightHourDelta) {
-		lightState = LIGHT_STATE_SUNRISE;
-	} else if (std::abs(lightHour - SUNSET) < 2 * lightHourDelta) {
-		lightState = LIGHT_STATE_SUNSET;
-	}
-
-	int32_t newLightLevel = lightLevel;
-	bool lightChange = false;
-
-	switch (lightState) {
-		case LIGHT_STATE_SUNRISE: {
-			newLightLevel += (LIGHT_LEVEL_DAY - LIGHT_LEVEL_NIGHT) / 30;
+	if (gameHour != lightHour) {
+		bool lightChange = false;
+		if (gameHour >= 5 && gameHour <= 10) {
+			lightLevel = LIGHT_LEVEL_SUNRISE;
+			lightState = LIGHT_STATE_SUNRISE;
 			lightChange = true;
-			break;
-		}
-		case LIGHT_STATE_SUNSET: {
-			newLightLevel -= (LIGHT_LEVEL_DAY - LIGHT_LEVEL_NIGHT) / 30;
+		} else if (gameHour > 10 && gameHour < 17) {
+			lightLevel = LIGHT_LEVEL_DAY;
+			lightState = LIGHT_STATE_DAY;
 			lightChange = true;
-			break;
+		} else if (gameHour >= 17 && gameHour < 20) {
+			lightLevel = LIGHT_LEVEL_SUNSET;
+			lightState = LIGHT_STATE_SUNSET;
+			lightChange = true;
+		} else if ((gameHour >= 20 && gameHour <= 23) || (gameHour >= 0 && gameHour < 5)) {
+			lightLevel = LIGHT_LEVEL_NIGHT;
+			lightState = LIGHT_STATE_NIGHT;
+			lightChange = true;
 		}
-		default:
-			break;
-	}
 
-	if (newLightLevel <= LIGHT_LEVEL_NIGHT) {
-		lightLevel = LIGHT_LEVEL_NIGHT;
-		lightState = LIGHT_STATE_NIGHT;
-	} else if (newLightLevel >= LIGHT_LEVEL_DAY) {
-		lightLevel = LIGHT_LEVEL_DAY;
-		lightState = LIGHT_STATE_DAY;
-	} else {
-		lightLevel = newLightLevel;
-	}
+		// send the new light to the players
+		if (lightChange) {
+			lightHour = gameHour;
+			LightInfo lightInfo = getWorldLightInfo();
 
-	if (lightChange) {
-		LightInfo lightInfo = getWorldLightInfo();
-
-		for (const auto& it : players) {
-			it.second->sendWorldLight(lightInfo);
+			for (const auto& it : players) {
+				it.second->sendWorldLight(lightInfo);
+			}
 		}
 	}
 }
@@ -4556,7 +4571,9 @@ void Game::cleanup()
 
 void Game::ReleaseCreature(Creature* creature)
 {
-	ToReleaseCreatures.push_back(creature);
+	if (!creature->isPersistent()) {
+		ToReleaseCreatures.push_back(creature);
+	}
 }
 
 void Game::ReleaseItem(Item* item)
@@ -4583,16 +4600,12 @@ void Game::updateCreatureWalkthrough(const Creature* creature)
 	}
 }
 
-void Game::updateCreatureSkull(const Creature* creature)
+void Game::updateCreatureGender(const Creature* creature)
 {
-	if (getWorldType() != WORLD_TYPE_PVP) {
-		return;
-	}
-
 	SpectatorHashSet spectators;
 	map.getSpectators(spectators, creature->getPosition(), true, true);
 	for (Creature* spectator : spectators) {
-		spectator->getPlayer()->sendCreatureSkull(creature);
+		spectator->getPlayer()->sendCreatureGender(creature);
 	}
 }
 
@@ -4623,7 +4636,7 @@ void Game::updateCreatureType(Creature* creature)
 
 	uint32_t creatureId = creature->getID();
 	CreatureType_t creatureType = creature->getType();
-	if (creatureType == CREATURETYPE_MONSTER) {
+	if (creatureType == CREATURETYPE_POKEMON) {
 		const Creature* master = creature->getMaster();
 		if (master) {
 			masterPlayer = master->getPlayer();
@@ -4686,40 +4699,9 @@ void Game::updatePremium(Account& account)
 		std::cout << "> ERROR: Failed to save account: " << account.name << "!" << std::endl;
 	}
 }
-
 void Game::loadMotdNum()
 {
-	Database& db = Database::getInstance();
-
-	DBResult_ptr result = db.storeQuery("SELECT `value` FROM `server_config` WHERE `config` = 'motd_num'");
-	if (result) {
-		motdNum = result->getNumber<uint32_t>("value");
-	} else {
-		db.executeQuery("INSERT INTO `server_config` (`config`, `value`) VALUES ('motd_num', '0')");
-	}
-
-	result = db.storeQuery("SELECT `value` FROM `server_config` WHERE `config` = 'motd_hash'");
-	if (result) {
-		motdHash = result->getString("value");
-		if (motdHash != transformToSHA1(g_config.getString(ConfigManager::MOTD))) {
-			++motdNum;
-		}
-	} else {
-		db.executeQuery("INSERT INTO `server_config` (`config`, `value`) VALUES ('motd_hash', '')");
-	}
-}
-
-void Game::saveMotdNum() const
-{
-	Database& db = Database::getInstance();
-
-	std::ostringstream query;
-	query << "UPDATE `server_config` SET `value` = '" << motdNum << "' WHERE `config` = 'motd_num'";
-	db.executeQuery(query.str());
-
-	query.str(std::string());
-	query << "UPDATE `server_config` SET `value` = '" << transformToSHA1(g_config.getString(ConfigManager::MOTD)) << "' WHERE `config` = 'motd_hash'";
-	db.executeQuery(query.str());
+	//
 }
 
 void Game::checkPlayersRecord()
@@ -4741,7 +4723,7 @@ void Game::updatePlayersRecord() const
 	Database& db = Database::getInstance();
 
 	std::ostringstream query;
-	query << "UPDATE `server_config` SET `value` = '" << playersRecord << "' WHERE `config` = 'players_record'";
+	query << "UPDATE `game` SET `value` = '" << playersRecord << "' WHERE `key` = 'characters_record'";
 	db.executeQuery(query.str());
 }
 
@@ -4749,11 +4731,11 @@ void Game::loadPlayersRecord()
 {
 	Database& db = Database::getInstance();
 
-	DBResult_ptr result = db.storeQuery("SELECT `value` FROM `server_config` WHERE `config` = 'players_record'");
+	DBResult_ptr result = db.storeQuery("SELECT `value` FROM `game` WHERE `key` = 'characters_record'");
 	if (result) {
 		playersRecord = result->getNumber<uint32_t>("value");
 	} else {
-		db.executeQuery("INSERT INTO `server_config` (`config`, `value`) VALUES ('players_record', '0')");
+		db.executeQuery("INSERT INTO `game` (`key`, `value`) VALUES ('characters_record', '0')");
 	}
 }
 
@@ -4822,6 +4804,10 @@ bool Game::loadExperienceStages()
 
 void Game::playerInviteToParty(uint32_t playerId, uint32_t invitedId)
 {
+	if (playerId == invitedId) {
+		return;
+	}
+
 	Player* player = getPlayerByID(playerId);
 	if (!player) {
 		return;
@@ -5204,7 +5190,7 @@ void Game::playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 		if (it.stackable) {
 			uint16_t tmpAmount = offer.amount;
 			while (tmpAmount > 0) {
-				int32_t stackCount = std::min<int32_t>(100, tmpAmount);
+				int32_t stackCount = std::min<int32_t>(it.getItemMaxCount(), tmpAmount);
 				Item* item = Item::CreateItem(it.id, stackCount);
 				if (internalAddItem(player->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					delete item;
@@ -5311,7 +5297,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 		if (it.stackable) {
 			uint16_t tmpAmount = amount;
 			while (tmpAmount > 0) {
-				uint16_t stackCount = std::min<uint16_t>(100, tmpAmount);
+				uint16_t stackCount = std::min<uint16_t>(it.getItemMaxCount(), tmpAmount);
 				Item* item = Item::CreateItem(it.id, stackCount);
 				if (internalAddItem(buyerPlayer->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					delete item;
@@ -5353,7 +5339,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 		if (it.stackable) {
 			uint16_t tmpAmount = amount;
 			while (tmpAmount > 0) {
-				uint16_t stackCount = std::min<uint16_t>(100, tmpAmount);
+				uint16_t stackCount = std::min<uint16_t>(it.getItemMaxCount(), tmpAmount);
 				Item* item = Item::CreateItem(it.id, stackCount);
 				if (internalAddItem(player->getInbox(), item, INDEX_WHEREEVER, FLAG_NOLIMIT) != RETURNVALUE_NOERROR) {
 					delete item;
@@ -5406,6 +5392,36 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 	player->sendMarketEnter(player->getLastDepotId());
 	offer.timestamp += marketOfferDuration;
 	player->sendMarketAcceptOffer(offer);
+}
+
+void Game::playerSendPokemonEffect(uint32_t playerId, uint16_t effect)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	player->sendPokemonEffect(effect);
+}
+
+void Game::playerOrderPokemon(uint32_t playerId, const Position& toPos, Creature* creature)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	player->orderPokemon(toPos, creature);
+}
+
+void Game::sendPokemonToPlayer(uint32_t playerId, Pokemon* pokemon)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player || !pokemon || !pokemon->getPokeballType()) {
+		return;
+	}
+
+	player->sendPokemon(pokemon);
 }
 
 void Game::parsePlayerExtendedOpcode(uint32_t playerId, uint8_t opcode, const std::string& buffer)
@@ -5482,17 +5498,6 @@ void Game::forceRemoveCondition(uint32_t creatureId, ConditionType_t type)
 	creature->removeCondition(type, true);
 }
 
-void Game::sendOfflineTrainingDialog(Player* player)
-{
-	if (!player) {
-		return;
-	}
-
-	if (!player->hasModalWindowOpen(offlineTrainingWindow.id)) {
-		player->sendModalWindow(offlineTrainingWindow);
-	}
-}
-
 void Game::playerAnswerModalWindow(uint32_t playerId, uint32_t modalWindowId, uint8_t button, uint8_t choice)
 {
 	Player* player = getPlayerByID(playerId);
@@ -5506,25 +5511,8 @@ void Game::playerAnswerModalWindow(uint32_t playerId, uint32_t modalWindowId, ui
 
 	player->onModalWindowHandled(modalWindowId);
 
-	// offline training, hardcoded
-	if (modalWindowId == std::numeric_limits<uint32_t>::max()) {
-		if (button == 1) {
-			if (choice == SKILL_SWORD || choice == SKILL_AXE || choice == SKILL_CLUB || choice == SKILL_DISTANCE || choice == SKILL_MAGLEVEL) {
-				BedItem* bedItem = player->getBedItem();
-				if (bedItem && bedItem->sleep(player)) {
-					player->setOfflineTrainingSkill(choice);
-					return;
-				}
-			}
-		} else {
-			player->sendTextMessage(MESSAGE_EVENT_ADVANCE, "Offline training aborted.");
-		}
-
-		player->setBedItem(nullptr);
-	} else {
-		for (auto creatureEvent : player->getCreatureEvents(CREATURE_EVENT_MODALWINDOW)) {
-			creatureEvent->executeModalWindow(player, modalWindowId, button, choice);
-		}
+	for (auto creatureEvent : player->getCreatureEvents(CREATURE_EVENT_MODALWINDOW)) {
+		creatureEvent->executeModalWindow(player, modalWindowId, button, choice);
 	}
 }
 
@@ -5554,14 +5542,16 @@ void Game::removeNpc(Npc* npc)
 	npcs.erase(npc->getID());
 }
 
-void Game::addMonster(Monster* monster)
+void Game::addPokemon(Pokemon* pokemon)
 {
-	monsters[monster->getID()] = monster;
+	pokemons[pokemon->getID()] = pokemon;
 }
 
-void Game::removeMonster(Monster* monster)
+void Game::removePokemon(Pokemon* pokemon)
 {
-	monsters.erase(monster->getID());
+	if (!pokemon->isPersistent()) {
+		pokemons.erase(pokemon->getID());
+	}
 }
 
 Guild* Game::getGuild(uint32_t id) const
@@ -5673,7 +5663,7 @@ bool Game::reload(ReloadTypes_t reloadType)
 		case RELOAD_TYPE_EVENTS: return g_events->load();
 		case RELOAD_TYPE_GLOBALEVENTS: return g_globalEvents->reload();
 		case RELOAD_TYPE_ITEMS: return Item::items.reload();
-		case RELOAD_TYPE_MONSTERS: return g_monsters.reload();
+		case RELOAD_TYPE_POKEMONS: return g_pokemons.reload();
 		case RELOAD_TYPE_MOUNTS: return mounts.reload();
 		case RELOAD_TYPE_MOVEMENTS: return g_moveEvents->reload();
 		case RELOAD_TYPE_NPCS: {
@@ -5684,12 +5674,12 @@ bool Game::reload(ReloadTypes_t reloadType)
 		case RELOAD_TYPE_QUESTS: return quests.reload();
 		case RELOAD_TYPE_RAIDS: return raids.reload() && raids.startup();
 
-		case RELOAD_TYPE_SPELLS: {
-			if (!g_spells->reload()) {
-				std::cout << "[Error - Game::reload] Failed to reload spells." << std::endl;
+		case RELOAD_TYPE_MOVES: {
+			if (!g_moves->reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload moves." << std::endl;
 				std::terminate();
-			} else if (!g_monsters.reload()) {
-				std::cout << "[Error - Game::reload] Failed to reload monsters." << std::endl;
+			} else if (!g_pokemons.reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload pokemons." << std::endl;
 				std::terminate();
 			}
 			return true;
@@ -5697,32 +5687,28 @@ bool Game::reload(ReloadTypes_t reloadType)
 
 		case RELOAD_TYPE_TALKACTIONS: return g_talkActions->reload();
 
-		case RELOAD_TYPE_WEAPONS: {
-			bool results = g_weapons->reload();
-			g_weapons->loadDefaults();
-			return results;
-		}
+		case RELOAD_TYPE_POKEBALLS: return g_pokeballs->reload();
+
+		case RELOAD_TYPE_FOODS: return g_foods->reload();
 
 		default: {
-			if (!g_spells->reload()) {
-				std::cout << "[Error - Game::reload] Failed to reload spells." << std::endl;
+			if (!g_moves->reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload moves." << std::endl;
 				std::terminate();
-			} else if (!g_monsters.reload()) {
-				std::cout << "[Error - Game::reload] Failed to reload monsters." << std::endl;
+			} else if (!g_pokemons.reload()) {
+				std::cout << "[Error - Game::reload] Failed to reload pokemons." << std::endl;
 				std::terminate();
 			}
 
 			g_actions->reload();
 			g_config.reload();
 			g_creatureEvents->reload();
-			g_monsters.reload();
+			g_pokemons.reload();
 			g_moveEvents->reload();
 			Npcs::reload();
 			raids.reload() && raids.startup();
 			g_talkActions->reload();
 			Item::items.reload();
-			g_weapons->reload();
-			g_weapons->loadDefaults();
 			quests.reload();
 			mounts.reload();
 			g_globalEvents->reload();
@@ -5731,4 +5717,143 @@ bool Game::reload(ReloadTypes_t reloadType)
 			return true;
 		}
 	}
+}
+
+Position Game::getClosestFreeTile(Creature* creature, Position centerPos, bool extendedPos/* = false*/)
+{
+	bool foundTile;
+
+	Tile* tile = g_game.map.getTile(centerPos.x, centerPos.y, centerPos.z);
+	if (tile) {
+		ReturnValue ret;
+
+		if (creature->isSummon()) {
+			ret = tile->queryAdd(0, *creature->getMaster(), 1, FLAG_IGNOREBLOCKITEM);
+		} else{
+			ret = tile->queryAdd(0, *creature, 1, FLAG_IGNOREBLOCKITEM);
+		}
+
+		foundTile = (ret == RETURNVALUE_NOERROR) || (ret == RETURNVALUE_PLAYERISNOTINVITED);
+	} else {
+		foundTile = false;
+	}
+
+	if (!foundTile) {
+		static std::vector<std::pair<int32_t, int32_t>> extendedRelList {
+			                   {0, -2},
+			         {-1, -1}, {0, -1}, {1, -1},
+			{-2, 0}, {-1,  0},          {1,  0}, {2, 0},
+			         {-1,  1}, {0,  1}, {1,  1},
+			                   {0,  2}
+		};
+
+		static std::vector<std::pair<int32_t, int32_t>> normalRelList {
+			{-1, -1}, {0, -1}, {1, -1},
+			{-1,  0},          {1,  0},
+			{-1,  1}, {0,  1}, {1,  1}
+		};
+
+		std::vector<std::pair<int32_t, int32_t>>& relList = (extendedPos ? extendedRelList : normalRelList);
+
+		if (extendedPos) {
+			std::shuffle(relList.begin(), relList.begin() + 4, getRandomGenerator());
+			std::shuffle(relList.begin() + 4, relList.end(), getRandomGenerator());
+		} else {
+			std::shuffle(relList.begin(), relList.end(), getRandomGenerator());
+		}
+
+		for (const auto& it : relList) {
+			Position tryPos(centerPos.x + it.first, centerPos.y + it.second, centerPos.z);
+
+			tile = g_game.map.getTile(tryPos.x, tryPos.y, tryPos.z);
+			if (!tile) {
+				continue;
+			}
+
+			if (tile->queryAdd(0, *creature, 1, 0) == RETURNVALUE_NOERROR) {
+				if (g_game.map.isSightClear(centerPos, tryPos, false)) {
+					return tryPos;
+				}
+			}
+		}
+
+		return Position(0, 0, 0);
+	}
+
+	return centerPos;
+}
+
+void Game::transformPokeball(Cylinder* fromCylinder, Cylinder* toCylinder, Item* pokeball)
+{
+	if (!pokeball) {
+		return;
+	}
+
+	if (pokeball->getPokemonId() && (fromCylinder != toCylinder) && !pokeball->isStackable()) {
+		Pokemon* pokemon = getPokemonByGUID(pokeball->getPokemonId());
+		if (!pokemon) {
+			return;
+		}
+
+		const PokeballType* pokeballType = pokemon->getPokeballType();
+		if (pokeballType) {
+			Cylinder* parent = pokeball->getParent();
+
+			if (parent->getContainer() || parent->getCreature()) {
+				if (pokeball->getID() == pokeballType->getChargedID()){
+					transformItem(pokeball, pokemon->getChargedIcon());
+				} else if (pokeball->getID() == pokeballType->getDischargedID()){
+					transformItem(pokeball, pokemon->getDischargedIcon());
+				}
+			} else if (parent->getTile()) {
+				if (pokeball->getID() == pokemon->getChargedIcon()){
+					transformItem(pokeball, pokeballType->getChargedID());
+				} else if (pokeball->getID() == pokemon->getDischargedIcon()){
+					transformItem(pokeball, pokeballType->getDischargedID());
+				}
+			}
+		}
+	}
+}
+
+bool Game::isDay()
+{
+	return lightState == LIGHT_STATE_DAY;
+}
+
+bool Game::isSunset()
+{
+	return lightState == LIGHT_STATE_SUNSET;
+}
+
+
+bool Game::isNight()
+{
+	return lightState == LIGHT_STATE_NIGHT;
+}
+
+
+bool Game::isSunrise()
+{
+	return lightState == LIGHT_STATE_SUNRISE;
+}
+
+void Game::playerEvolvePokemon(uint32_t playerId, Item* item, Creature* creature)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	player->evolvePokemon(item, creature);
+}
+
+void Game::playerSendTextMessage(uint32_t playerId, MessageClasses mclass, const std::string& message)
+{
+	Player* player = getPlayerByID(playerId);
+	if (!player) {
+		return;
+	}
+
+	player->sendTextMessage(mclass, message);
 }

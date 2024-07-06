@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="107"  name="Hitmonchan" nameDescription="a Hitmonchan" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="107" corpse="2925" />
+	<type first="fighting" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2473" />
+	<icon charged="26385" discharged="26604" />
+	<genders>
+		<gender name="male" percentage="100" />
+	</genders>
+	<basestats>
+		<hp value= "50" />
+		<attack value="105" />
+		<defense value="79" />
+		<specialAttack value="35" />
+		<specialDefense value="110" />
+		<speed value="76" />
+	</basestats>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

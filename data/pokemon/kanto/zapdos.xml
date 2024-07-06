@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="145"  name="Zapdos" nameDescription="a Zapdos" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="145" corpse="2964" />
+	<type first="electric" second="flying" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="3969" />
+	<icon charged="26406" discharged="26625" />
+	<basestats>
+		<hp value= "90" />
+		<attack value="90" />
+		<defense value="85" />
+		<specialAttack value="125" />
+		<specialDefense value="90" />
+		<speed value="100" />
+	</basestats>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

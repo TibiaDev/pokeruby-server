@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +46,7 @@ struct MoveEventList {
 	std::list<MoveEvent> moveEvent[MOVE_EVENT_LAST];
 };
 
-using VocEquipMap = std::map<uint16_t, bool>;
+using PprofEquipMap = std::map<uint16_t, bool>;
 
 class MoveEvents final : public BaseEvents
 {
@@ -72,6 +73,7 @@ class MoveEvents final : public BaseEvents
 		void clear() override;
 		LuaScriptInterface& getScriptInterface() override;
 		std::string getScriptBaseName() const override;
+		std::string getScriptPrefixName() const override;
 		Event_ptr getEvent(const std::string& nodeName) override;
 		bool registerEvent(Event_ptr event, const pugi::xml_node& node) override;
 
@@ -123,22 +125,18 @@ class MoveEvent final : public Event
 		uint32_t getReqLevel() const {
 			return reqLevel;
 		}
-		uint32_t getReqMagLv() const {
-			return reqMagLevel;
-		}
 		bool isPremium() const {
 			return premium;
 		}
-		const std::string& getVocationString() const {
-			return vocationString;
+		const std::string& getProfessionString() const {
+			return professionString;
 		}
 		uint32_t getWieldInfo() const {
 			return wieldInfo;
 		}
-		const VocEquipMap& getVocEquipMap() const {
-			return vocEquipMap;
+		const PprofEquipMap& getPprofEquipMap() const {
+			return profEquipMap;
 		}
-
 	private:
 		std::string getScriptEventName() const override;
 
@@ -150,11 +148,10 @@ class MoveEvent final : public Event
 
 		//onEquip information
 		uint32_t reqLevel = 0;
-		uint32_t reqMagLevel = 0;
 		bool premium = false;
-		std::string vocationString;
+		std::string professionString;
 		uint32_t wieldInfo = 0;
-		VocEquipMap vocEquipMap;
+		PprofEquipMap profEquipMap;
 };
 
 #endif

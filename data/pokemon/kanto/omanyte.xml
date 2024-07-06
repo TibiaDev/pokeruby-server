@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="138"  name="Omanyte" nameDescription="an Omanyte" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="138" corpse="6049" />
+	<type first="rock" second="water" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2504" />
+	<icon charged="26550" discharged="26771" />
+	<genders>
+		<gender name="male" percentage="87.5" />
+		<gender name="female" percentage="12.5" />
+	</genders>
+	<basestats>
+		<hp value= "35" />
+		<attack value="40" />
+		<defense value="100" />
+		<specialAttack value="90" />
+		<specialDefense value="55" />
+		<speed value="35" />
+	</basestats>
+	<evolutions>
+		<evolution to="omastar" at="anytime" stone="8929" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />		
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="21"  name="Spearow" nameDescription="a Spearow" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="21" corpse="2830" />
+	<type first="normal" second="flying" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2396" />
+	<icon charged="26596" discharged="26817" />
+	<genders>
+		<gender name="male" percentage="75" />
+		<gender name="female" percentage="25" />
+	</genders>
+	<basestats>
+		<hp value= "40" />
+		<attack value="60" />
+		<defense value="30" />
+		<specialAttack value="31" />
+		<specialDefense value="31" />
+		<speed value="70" />
+	</basestats>
+	<evolutions>
+		<evolution to="fearow" at="day" stone="8924" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

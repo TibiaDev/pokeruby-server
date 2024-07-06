@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="89"  name="Muk" nameDescription="a Muk" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="89" corpse="2906" />
+	<type first="poison" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2455" />
+	<icon charged="26448" discharged="26667" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "105" />
+		<attack value="105" />
+		<defense value="75" />
+		<specialAttack value="65" />
+		<specialDefense value="100" />
+		<speed value="50" />
+	</basestats>
+	<flags>
+		<flag catchable="1" />		
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

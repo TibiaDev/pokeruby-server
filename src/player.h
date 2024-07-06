@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +22,14 @@
 #define FS_PLAYER_H_4083D3D3A05B4EDE891B31BB720CD06F
 
 #include "creature.h"
+#include "pokemon.h"
 #include "container.h"
 #include "cylinder.h"
 #include "outfit.h"
 #include "enums.h"
-#include "vocation.h"
+#include "const.h"
+#include "profession.h"
+#include "clan.h"
 #include "protocolgame.h"
 #include "ioguild.h"
 #include "party.h"
@@ -39,13 +43,13 @@
 
 class House;
 class NetworkMessage;
-class Weapon;
 class ProtocolGame;
 class Npc;
 class Party;
 class SchedulerTask;
 class Bed;
 class Guild;
+class FoodType;
 
 enum skillsid_t {
 	SKILLVALUE_LEVEL = 0,
@@ -97,6 +101,12 @@ struct OutfitEntry {
 	uint8_t addons;
 };
 
+struct PokedexEntry {
+	constexpr PokedexEntry(uint16_t pokemonNumber) : pokemonNumber(pokemonNumber) {}
+
+	uint16_t pokemonNumber;
+};
+
 struct Skill {
 	uint64_t tries = 0;
 	uint16_t level = 10;
@@ -133,16 +143,13 @@ class Player final : public Creature, public Cylinder
 
 		static MuteCountMap muteCountMap;
 
-		const std::string& getName() const override {
-			return name;
-		}
-		void setName(std::string name) {
-			this->name = std::move(name);
-		}
 		const std::string& getNameDescription() const override {
 			return name;
 		}
 		std::string getDescription(int32_t lookDistance) const override;
+		const NameColor_t getNameColor() const override {
+			return getGroup()->nameColor;
+		}
 
 		CreatureType_t getType() const override {
 			return CREATURETYPE_PLAYER;
@@ -186,25 +193,6 @@ class Player final : public Creature, public Cylinder
 
 		uint16_t getStaminaMinutes() const {
 			return staminaMinutes;
-		}
-
-		bool addOfflineTrainingTries(skills_t skill, uint64_t tries);
-
-		void addOfflineTrainingTime(int32_t addTime) {
-			offlineTrainingTime = std::min<int32_t>(12 * 3600 * 1000, offlineTrainingTime + addTime);
-		}
-		void removeOfflineTrainingTime(int32_t removeTime) {
-			offlineTrainingTime = std::max<int32_t>(0, offlineTrainingTime - removeTime);
-		}
-		int32_t getOfflineTrainingTime() const {
-			return offlineTrainingTime;
-		}
-
-		int32_t getOfflineTrainingSkill() const {
-			return offlineTrainingSkill;
-		}
-		void setOfflineTrainingSkill(int32_t skill) {
-			offlineTrainingSkill = skill;
 		}
 
 		uint64_t getBankBalance() const {
@@ -255,8 +243,12 @@ class Player final : public Creature, public Cylinder
 			return guildWarVector;
 		}
 
-		Vocation* getVocation() const {
-			return vocation;
+		Profession* getProfession() const {
+			return profession;
+		}
+
+		Clan* getClan() const {
+			return clan;
 		}
 
 		OperatingSystem_t getOperatingSystem() const {
@@ -272,10 +264,6 @@ class Player final : public Creature, public Cylinder
 			}
 
 			return client->getVersion();
-		}
-
-		bool hasSecureMode() const {
-			return secureMode;
 		}
 
 		void setParty(Party* party) {
@@ -294,19 +282,8 @@ class Player final : public Creature, public Cylinder
 
 		GuildEmblems_t getGuildEmblem(const Player* player) const;
 
-		uint64_t getSpentMana() const {
-			return manaSpent;
-		}
-
 		bool hasFlag(PlayerFlags value) const {
 			return (group->flags & value) != 0;
-		}
-
-		BedItem* getBedItem() {
-			return bedItem;
-		}
-		void setBedItem(BedItem* b) {
-			bedItem = b;
 		}
 
 		void addBlessing(uint8_t blessing) {
@@ -357,6 +334,13 @@ class Player final : public Creature, public Cylinder
 			return inMarket;
 		}
 
+		void setPokemonHealthMax(uint32_t health) {
+			pokemonHealthMax = health;
+		}
+		void setPokemonHealth(uint32_t health) {
+			pokemonHealth = health;
+		}
+
 		void setLastDepotId(int16_t newId) {
 			lastDepotId = newId;
 		}
@@ -387,18 +371,6 @@ class Player final : public Creature, public Cylinder
 		uint8_t getLevelPercent() const {
 			return levelPercent;
 		}
-		uint32_t getMagicLevel() const {
-			return std::max<int32_t>(0, magLevel + varStats[STAT_MAGICPOINTS]);
-		}
-		uint32_t getBaseMagicLevel() const {
-			return magLevel;
-		}
-		uint8_t getMagicLevelPercent() const {
-			return magLevelPercent;
-		}
-		uint8_t getSoul() const {
-			return soul;
-		}
 		bool isAccessPlayer() const {
 			return group->access;
 		}
@@ -407,9 +379,14 @@ class Player final : public Creature, public Cylinder
 
 		uint16_t getHelpers() const;
 
-		bool setVocation(uint16_t vocId);
-		uint16_t getVocationId() const {
-			return vocation->getId();
+		bool setProfession(uint16_t profId);
+		uint16_t getProfessionId() const {
+			return profession->getId();
+		}
+
+		bool setClan(uint16_t clanId);
+		uint16_t getClanId() const {
+			return clan->getId();
 		}
 
 		PlayerSex_t getSex() const {
@@ -431,14 +408,21 @@ class Player final : public Creature, public Cylinder
 		const Position& getLoginPosition() const {
 			return loginPosition;
 		}
-		const Position& getTemplePosition() const {
-			return town->getTemplePosition();
+		const Position& getPokemonCenterPosition() const {
+			return town->getPokemonCenterPosition();
 		}
 		Town* getTown() const {
 			return town;
 		}
 		void setTown(Town* town) {
 			this->town = town;
+		}
+
+		SoundEffectClasses getListeningMusic() const {
+			return listeningMusic;
+		}
+		void setListeningMusic(SoundEffectClasses listeningMusic) {
+			this->listeningMusic = listeningMusic;
 		}
 
 		void clearModalWindows();
@@ -471,14 +455,33 @@ class Player final : public Creature, public Cylinder
 			}
 		}
 
+		uint8_t getPokemonCapacity() const {
+			if (hasFlag(PlayerFlag_CannotPickupItem)) {
+				return 0;
+			} else if (hasFlag(PlayerFlag_HasInfinitePokemonCapacity)) {
+				return std::numeric_limits<uint8_t>::max();
+			}
+			return 6;
+		}
+
+		uint8_t getFreePokemonCapacity() const {
+			if (hasFlag(PlayerFlag_CannotPickupItem)) {
+				return 0;
+			} else if (hasFlag(PlayerFlag_HasInfinitePokemonCapacity)) {
+				return std::numeric_limits<uint8_t>::max();
+			} else {
+				return std::max<uint8_t>(0, 6 - inventoryPokemonCount);
+			}
+		}
+
 		int32_t getMaxHealth() const override {
 			return std::max<int32_t>(1, healthMax + varStats[STAT_MAXHITPOINTS]);
 		}
-		uint32_t getMana() const {
-			return mana;
+		uint32_t getPokemonHealth() const {
+			return pokemonHealth;
 		}
-		uint32_t getMaxMana() const {
-			return std::max<int32_t>(0, manaMax + varStats[STAT_MAXMANAPOINTS]);
+		uint32_t getPokemonHealthMax() const {
+			return pokemonHealthMax;
 		}
 
 		Item* getInventoryItem(slots_t slot) const;
@@ -492,10 +495,6 @@ class Player final : public Creature, public Cylinder
 
 		void setVarSkill(skills_t skill, int32_t modifier) {
 			varSkills[skill] += modifier;
-		}
-
-		void setVarSpecialSkill(SpecialSkills_t skill, int32_t modifier) {
-			varSpecialSkills[skill] += modifier;
 		}
 
 		void setVarStats(stats_t stat, int32_t modifier);
@@ -515,8 +514,8 @@ class Player final : public Creature, public Cylinder
 		bool canWalkthrough(const Creature* creature) const;
 		bool canWalkthroughEx(const Creature* creature) const;
 
-		RaceType_t getRace() const override {
-			return RACE_BLOOD;
+		BloodType_t getBlood() const override {
+			return BLOOD_RED;
 		}
 
 		uint64_t getMoney() const;
@@ -574,41 +573,30 @@ class Player final : public Creature, public Cylinder
 		void openShopWindow(Npc* npc, const std::list<ShopInfo>& shop);
 		bool closeShopWindow(bool sendCloseShopWindow = true);
 		bool updateSaleShopList(const Item* item);
-		bool hasShopItemForSale(uint32_t itemId, uint8_t subType) const;
+		bool hasShopItemForSale(uint32_t itemId, uint16_t subType) const;
 
 		void setChaseMode(bool mode);
 		void setFightMode(fightMode_t mode) {
 			fightMode = mode;
-		}
-		void setSecureMode(bool mode) {
-			secureMode = mode;
 		}
 
 		//combat functions
 		bool setAttackedCreature(Creature* creature) override;
 		bool isImmune(CombatType_t type) const override;
 		bool isImmune(ConditionType_t type) const override;
-		bool hasShield() const;
 		bool isAttackable() const override;
 		static bool lastHitIsPlayer(Creature* lastHitCreature);
 
 		void changeHealth(int32_t healthChange, bool sendHealthChange = true) override;
-		void changeMana(int32_t manaChange);
-		void changeSoul(int32_t soulChange);
+		void changePokemonHealth(int32_t hpChange);
 
 		bool isPzLocked() const {
 			return pzLocked;
 		}
 		BlockType_t blockHit(Creature* attacker, CombatType_t combatType, int32_t& damage,
-		                             bool checkDefense = false, bool checkArmor = false, bool field = false) override;
+		                             bool field = false) override;
 		void doAttacking(uint32_t interval) override;
-		bool hasExtraSwing() override {
-			return lastAttack > 0 && ((OTSYS_TIME() - lastAttack) >= getAttackSpeed());
-		}
 
-		uint16_t getSpecialSkill(uint8_t skill) const {
-			return std::max<int32_t>(0, varSpecialSkills[skill]);
-		}
 		uint16_t getSkillLevel(uint8_t skill) const {
 			return std::max<int32_t>(0, skills[skill].level + varSkills[skill]);
 		}
@@ -622,23 +610,12 @@ class Player final : public Creature, public Cylinder
 		bool getAddAttackSkill() const {
 			return addAttackSkillPoint;
 		}
-		BlockType_t getLastAttackBlockType() const {
-			return lastAttackBlockType;
-		}
-
-		Item* getWeapon(slots_t slot, bool ignoreAmmo) const;
-		Item* getWeapon(bool ignoreAmmo = false) const;
-		WeaponType_t getWeaponType() const;
-		int32_t getWeaponSkill(const Item* item) const;
-		void getShieldAndWeapon(const Item*& shield, const Item*& weapon) const;
 
 		void drainHealth(Creature* attacker, int32_t damage) override;
-		void drainMana(Creature* attacker, int32_t manaLoss);
-		void addManaSpent(uint64_t amount);
 		void addSkillAdvance(skills_t skill, uint64_t count);
 
-		int32_t getArmor() const override;
-		int32_t getDefense() const override;
+		float getDefense() const override;
+		float getSpecialDefense() const override;
 		float getAttackFactor() const override;
 		float getDefenseFactor() const override;
 
@@ -658,8 +635,6 @@ class Player final : public Creature, public Cylinder
 		bool onKilledCreature(Creature* target, bool lastHit = true) override;
 		void onGainExperience(uint64_t gainExp, Creature* target) override;
 		void onGainSharedExperience(uint64_t gainExp, Creature* source);
-		void onAttackedCreatureBlockHit(BlockType_t blockType) override;
-		void onBlockHit() override;
 		void onChangeZone(ZoneType_t zone) override;
 		void onAttackedCreatureChangeZone(ZoneType_t zone) override;
 		void onIdleStatus() override;
@@ -667,28 +642,29 @@ class Player final : public Creature, public Cylinder
 
 		LightInfo getCreatureLight() const override;
 
-		Skulls_t getSkull() const override;
-		Skulls_t getSkullClient(const Creature* creature) const override;
-		int64_t getSkullTicks() const { return skullTicks; }
-		void setSkullTicks(int64_t ticks) { skullTicks = ticks; }
+		Genders_t getGender() const override;
+		Genders_t getGenderClient(const Creature* creature) const override;
 
 		bool hasAttacked(const Player* attacked) const;
 		void addAttacked(const Player* attacked);
 		void removeAttacked(const Player* attacked);
 		void clearAttacked();
 		void addUnjustifiedDead(const Player* attacked);
-		void sendCreatureSkull(const Creature* creature) const {
+		void sendCreatureGender(const Creature* creature) const {
 			if (client) {
-				client->sendCreatureSkull(creature);
+				client->sendCreatureGender(creature);
 			}
 		}
-		void checkSkullTicks(int32_t ticks);
 
 		bool canWear(uint32_t lookType, uint8_t addons) const;
 		void addOutfit(uint16_t lookType, uint8_t addons);
 		bool removeOutfit(uint16_t lookType);
 		bool removeOutfitAddon(uint16_t lookType, uint8_t addons);
 		bool getOutfitAddons(const Outfit& outfit, uint8_t& addons) const;
+
+		bool hasPokedexEntry(uint16_t pokemonNumber) const;
+		void addPokedexEntry(uint16_t pokemonNumber);
+		bool removePokedexEntry(uint16_t pokemonNumber);
 
 		bool canLogout();
 
@@ -697,6 +673,9 @@ class Player final : public Creature, public Cylinder
 
 		//tile
 		//send methods
+		void sendAnimatedText(const Position& pos, uint8_t color, std::string text) const {
+       		if (client) client->sendAnimatedText(pos, color, text);
+    	}
 		void sendAddTileItem(const Tile* tile, const Position& pos, const Item* item) {
 			if (client) {
 				int32_t stackpos = tile->getStackposOfItem(this, item);
@@ -799,6 +778,11 @@ class Player final : public Creature, public Cylinder
 				}
 			}
 		}
+		void sendCreatureChangeName(const Creature* creature, const std::string& name) {
+			if (client) {
+				client->sendCreatureName(creature, name);
+			}
+		}
 		void sendCreatureLight(const Creature* creature) {
 			if (client) {
 				client->sendCreatureLight(creature);
@@ -824,14 +808,14 @@ class Player final : public Creature, public Cylinder
 				client->sendCreatureHelpers(creatureId, helpers);
 			}
 		}
-		void sendSpellCooldown(uint8_t spellId, uint32_t time) {
+		void sendPokemonMoveCooldown(uint16_t moveId, uint32_t time) {
 			if (client) {
-				client->sendSpellCooldown(spellId, time);
+				client->sendPokemonMoveCooldown(moveId, time);
 			}
 		}
-		void sendSpellGroupCooldown(SpellGroup_t groupId, uint32_t time) {
+		void sendPokemonMoves(Pokemon* pokemon) {
 			if (client) {
-				client->sendSpellGroupCooldown(groupId, time);
+				client->sendPokemonMoves(pokemon);
 			}
 		}
 		void sendModalWindow(const ModalWindow& modalWindow);
@@ -911,7 +895,7 @@ class Player final : public Creature, public Cylinder
 				client->sendCreatureHealth(creature);
 			}
 		}
-		void sendDistanceShoot(const Position& from, const Position& to, unsigned char type) const {
+		void sendDistanceShoot(const Position& from, const Position& to, uint16_t type) const {
 			if (client) {
 				client->sendDistanceShoot(from, to, type);
 			}
@@ -928,9 +912,19 @@ class Player final : public Creature, public Cylinder
 				client->sendIcons(getClientIcons());
 			}
 		}
-		void sendMagicEffect(const Position& pos, uint8_t type) const {
+		void sendEffect(const Position& pos, uint16_t type) const {
 			if (client) {
-				client->sendMagicEffect(pos, type);
+				client->sendEffect(pos, type);
+			}
+		}
+		void sendSound(const Position& pos, uint16_t type, uint8_t channel = SOUND_CHANNEL_EFFECT) const {
+			if (client) {
+				client->sendSound(pos, type, channel);
+			}
+		}
+		void sendDistanceSound(const Position& from, const Position& to, uint16_t type, uint8_t channel = SOUND_CHANNEL_EFFECT) const {
+			if (client) {
+				client->sendDistanceSound(from, to, type, channel);
 			}
 		}
 		void sendPing();
@@ -1132,27 +1126,67 @@ class Player final : public Creature, public Cylinder
 		}
 		uint32_t getNextActionTime() const;
 
+		void setNextCastMove(int64_t time) {
+			nextMove = time;
+		}
+		bool canCastMove() const {
+			if (hasFlag(PlayerFlag_CannotUseMoves)) {
+				return false;
+			}
+			
+			return nextMove <= OTSYS_TIME();
+		}
+		uint32_t getNextCastMoveTime() const;
+
+		void setNextGoback(int64_t time) {
+			if (time > nextGoback) {
+				nextGoback = time;
+			}
+		}
+		bool canDoGoback() const {
+			return nextGoback <= OTSYS_TIME();
+		}
+		uint32_t getNextGobackTime() const;
+
 		Item* getWriteItem(uint32_t& windowTextId, uint16_t& maxWriteLen);
 		void setWriteItem(Item* item, uint16_t maxWriteLen = 0);
 
 		House* getEditHouse(uint32_t& windowTextId, uint32_t& listId);
 		void setEditHouse(House* house, uint32_t listId = 0);
 
-		void learnInstantSpell(const std::string& spellName);
-		void forgetInstantSpell(const std::string& spellName);
-		bool hasLearnedInstantSpell(const std::string& spellName) const;
+		Pokemon* getHisPokemon() const {
+			if (summons.size()) {
+				Creature* creature = summons.front();
+				if (creature) {
+					return creature->getPokemon();
+				}
+			}
+
+			return nullptr;
+		}
+
+		void tryCatchPokemon(const PokeballType* pokeballType, Item* corpse, double rate, const Position& toPos);
+		void sendPokemonEffect(uint16_t effect) const;
+		void sendPokemonTextMessage(const std::string& message) const;
+		void gobackPokemon(Item* pokeball);
+		void sendPokemon(Pokemon* pokemon);
+		void orderPokemon(const Position& toPos, Creature* creature);
+		void evolvePokemon(Item* item, Creature* creature);
+		bool feed(const FoodType* foodType) override;
 
 	private:
 		std::forward_list<Condition*> getMuteConditions() const;
 
 		void checkTradeState(const Item* item);
 		bool hasCapacity(const Item* item, uint32_t count) const;
+		bool hasPokemonCapacity(const Item* item) const;
 
 		void gainExperience(uint64_t gainExp, Creature* source);
 		void addExperience(Creature* source, uint64_t exp, bool sendText = false);
 		void removeExperience(uint64_t exp, bool sendText = false);
 
 		void updateInventoryWeight();
+		void updateInventoryPokemonCount();
 
 		void setNextWalkActionTask(SchedulerTask* task);
 		void setNextWalkTask(SchedulerTask* task);
@@ -1198,40 +1232,40 @@ class Player final : public Creature, public Cylinder
 		std::map<uint32_t, int32_t> storageMap;
 
 		std::vector<OutfitEntry> outfits;
+		std::vector<PokedexEntry> pokedexEntries;
 		GuildWarVector guildWarVector;
 
 		std::list<ShopInfo> shopItemList;
 
 		std::forward_list<Party*> invitePartyList;
 		std::forward_list<uint32_t> modalWindows;
-		std::forward_list<std::string> learnedInstantSpellList;
 		std::forward_list<Condition*> storedConditionList; // TODO: This variable is only temporarily used when logging in, get rid of it somehow
 
-		std::string name;
 		std::string guildNick;
 
 		Skill skills[SKILL_LAST + 1];
 		LightInfo itemsLight;
 		Position loginPosition;
 		Position lastWalkthroughPosition;
+		SoundEffectClasses listeningMusic = CONST_SE_NONE;
 
 		time_t lastLoginSaved = 0;
 		time_t lastLogout = 0;
 
 		uint64_t experience = 0;
-		uint64_t manaSpent = 0;
 		uint64_t lastAttack = 0;
 		uint64_t bankBalance = 0;
 		uint64_t lastQuestlogUpdate = 0;
 		int64_t lastFailedFollow = 0;
-		int64_t skullTicks = 0;
 		int64_t lastWalkthroughAttempt = 0;
 		int64_t lastToggleMount = 0;
 		int64_t lastPing;
 		int64_t lastPong;
 		int64_t nextAction = 0;
+		int64_t nextMove = 0;
+		int64_t nextGoback = 0;
 
-		BedItem* bedItem = nullptr;
+		//BedItem* bedItem = nullptr;
 		Guild* guild = nullptr;
 		const GuildRank* guildRank = nullptr;
 		Group* group = nullptr;
@@ -1246,7 +1280,8 @@ class Player final : public Creature, public Cylinder
 		ProtocolGame_ptr client;
 		SchedulerTask* walkTask = nullptr;
 		Town* town = nullptr;
-		Vocation* vocation = nullptr;
+		Profession* profession = nullptr;
+		Clan* clan = nullptr;
 
 		uint32_t inventoryWeight = 0;
 		uint32_t capacity = 40000;
@@ -1254,7 +1289,6 @@ class Player final : public Creature, public Cylinder
 		uint32_t conditionImmunities = 0;
 		uint32_t conditionSuppressions = 0;
 		uint32_t level = 1;
-		uint32_t magLevel = 0;
 		uint32_t actionTaskEvent = 0;
 		uint32_t nextStepEvent = 0;
 		uint32_t walkTaskEvent = 0;
@@ -1264,40 +1298,31 @@ class Player final : public Creature, public Cylinder
 		uint32_t guid = 0;
 		uint32_t windowTextId = 0;
 		uint32_t editListId = 0;
-		uint32_t mana = 0;
-		uint32_t manaMax = 0;
+		uint32_t pokemonHealth = 0;
+		uint32_t pokemonHealthMax = 0;
 		int32_t varSkills[SKILL_LAST + 1] = {};
-		int32_t varSpecialSkills[SPECIALSKILL_LAST + 1] = {};
 		int32_t varStats[STAT_LAST + 1] = {};
 		int32_t purchaseCallback = -1;
 		int32_t saleCallback = -1;
 		int32_t MessageBufferCount = 0;
 		int32_t premiumDays = 0;
-		int32_t bloodHitCount = 0;
-		int32_t shieldBlockCount = 0;
-		int32_t offlineTrainingSkill = -1;
-		int32_t offlineTrainingTime = 0;
 		int32_t idleTime = 0;
 
-		uint16_t lastStatsTrainingTime = 0;
 		uint16_t staminaMinutes = 2520;
 		uint16_t maxWriteLen = 0;
 		int16_t lastDepotId = -1;
 
-		uint8_t soul = 0;
+		uint8_t inventoryPokemonCount = 0;
 		uint8_t blessings = 0;
 		uint8_t levelPercent = 0;
-		uint8_t magLevelPercent = 0;
 
 		PlayerSex_t sex = PLAYERSEX_FEMALE;
 		OperatingSystem_t operatingSystem = CLIENTOS_NONE;
-		BlockType_t lastAttackBlockType = BLOCK_NONE;
 		tradestate_t tradeState = TRADE_NONE;
 		fightMode_t fightMode = FIGHTMODE_ATTACK;
 		AccountType_t accountType = ACCOUNT_TYPE_NORMAL;
 
 		bool chaseMode = false;
-		bool secureMode = false;
 		bool inMarket = false;
 		bool wasMounted = false;
 		bool ghostMode = false;
@@ -1314,17 +1339,13 @@ class Player final : public Creature, public Cylinder
 		}
 		void updateBaseSpeed() {
 			if (!hasFlag(PlayerFlag_SetMaxSpeed)) {
-				baseSpeed = vocation->getBaseSpeed() + (2 * (level - 1));
+				baseSpeed = profession->getBaseSpeed() + (2 * (level - 1));
 			} else {
 				baseSpeed = PLAYER_MAX_SPEED;
 			}
 		}
 
 		bool isPromoted() const;
-
-		uint32_t getAttackSpeed() const {
-			return vocation->getAttackSpeed();
-		}
 
 		static uint8_t getPercentLevel(uint64_t count, uint64_t nextLevelCount);
 		double getLostPercent() const;
@@ -1350,6 +1371,8 @@ class Player final : public Creature, public Cylinder
 		friend class Actions;
 		friend class IOLoginData;
 		friend class ProtocolGame;
+		friend class PokeballType;
+		friend class FoodType;
 };
 
 #endif

@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,6 +66,7 @@ enum tileflags_t : uint32_t {
 	TILESTATE_IMMOVABLENOFIELDBLOCKPATH = 1 << 21,
 	TILESTATE_NOFIELDBLOCKPATH = 1 << 22,
 	TILESTATE_SUPPORTS_HANGABLE = 1 << 23,
+	TILESTATE_CAVE = 1 << 24,
 
 	TILESTATE_FLOORCHANGE = TILESTATE_FLOORCHANGE_DOWN | TILESTATE_FLOORCHANGE_NORTH | TILESTATE_FLOORCHANGE_SOUTH | TILESTATE_FLOORCHANGE_EAST | TILESTATE_FLOORCHANGE_WEST | TILESTATE_FLOORCHANGE_SOUTH_ALT | TILESTATE_FLOORCHANGE_EAST_ALT,
 };
@@ -284,6 +286,13 @@ class Tile : public Cylinder
 			ground = item;
 		}
 
+		SoundEffectClasses getMusic() const {
+			return music;
+		}
+		void setMusic(SoundEffectClasses music) {
+			this->music = music;
+		}
+
 	private:
 		void onAddTileItem(Item* item);
 		void onUpdateTileItem(Item* oldItem, const ItemType& oldType, Item* newItem, const ItemType& newType);
@@ -296,6 +305,7 @@ class Tile : public Cylinder
 		Item* ground = nullptr;
 		Position tilePos;
 		uint32_t flags = 0;
+		SoundEffectClasses music = CONST_SE_NONE;
 };
 
 // Used for walkable tiles, where there is high likeliness of

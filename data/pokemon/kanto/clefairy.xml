@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="35"  name="Clefairy" nameDescription="a Clefairy" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="35" corpse="2844" />
+	<type first="fairy" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2410" />
+	<icon charged="26451" discharged="26670" />
+	<genders>
+		<gender name="male" percentage="25" />
+		<gender name="female" percentage="75" />
+	</genders>
+	<basestats>
+		<hp value= "70" />
+		<attack value="45" />
+		<defense value="48" />
+		<specialAttack value="60" />
+		<specialDefense value="65" />
+		<speed value="35" />
+	</basestats>
+	<evolutions>
+		<evolution to="clefable" at="night" stone="8928" />
+	</evolutions>
+	<flags>
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

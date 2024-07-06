@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="63" name="Abra" nameDescription="an Abra" blood="red" experience="23" speed="150" catchRate="50" price="500000">
+	<look type="63" corpse="2871" />
+	<type first="psychic" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2438" />
+	<icon charged="26498" discharged="26718" />	
+	<genders>
+		<gender name="male" percentage="75" />
+		<gender name="female" percentage="25" />
+	</genders>
+	<basestats>
+		<hp value= "25" />
+		<attack value="20" />
+		<defense value="15" />
+		<specialAttack value="105" />
+		<specialDefense value="55" />
+		<speed value="90" />
+	</basestats>
+	<evolutions>
+		<evolution to="kadabra" at="day" stone="8932" />
+	</evolutions>	
+	<flags>
+		<flag catchable="1" />		
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="4" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

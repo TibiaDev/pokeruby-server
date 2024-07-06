@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +22,8 @@
 
 #include "creature.h"
 #include "game.h"
-#include "monster.h"
+#include "pokemon.h"
+#include "pokeballs.h"
 #include "configmanager.h"
 #include "scheduler.h"
 
@@ -79,16 +81,16 @@ bool Creature::canSee(const Position& pos) const
 
 bool Creature::canSeeCreature(const Creature* creature) const
 {
-	if (!canSeeInvisibility() && creature->isInvisible()) {
+	if (creature->isRemoved() || (!canSeeInvisibility() && creature->isInvisible())) {
 		return false;
 	}
 	return true;
 }
 
-void Creature::setSkull(Skulls_t newSkull)
+void Creature::setGender(Genders_t newGender)
 {
-	skull = newSkull;
-	g_game.updateCreatureSkull(this);
+	gender = newGender;
+	g_game.updateCreatureGender(this);
 }
 
 int64_t Creature::getTimeSinceLastMove() const
@@ -224,13 +226,18 @@ void Creature::onWalk()
 
 void Creature::onWalk(Direction& dir)
 {
-	if (hasCondition(CONDITION_DRUNK)) {
+	if (hasCondition(CONDITION_CONFUSION)) {
 		uint32_t r = uniform_random(0, 20);
-		if (r <= DIRECTION_DIAGONAL_MASK) {
-			if (r < DIRECTION_DIAGONAL_MASK) {
-				dir = static_cast<Direction>(r);
+		if (r < DIRECTION_DIAGONAL_MASK) {
+			dir = static_cast<Direction>(r);
+			g_game.addEffect(getPosition(), 948);
+
+			if (uniform_random(1, 100) <= 10) {
+				CombatDamage damage;
+				damage.value = -(getHealth() * 0.1);
+				damage.type = COMBAT_PHYSICALDAMAGE;
+				g_game.combatChangeHealth(this, this, damage);
 			}
-			g_game.internalCreatureSay(this, TALKTYPE_MONSTER_SAY, "Hicks!", false);
 		}
 	}
 }
@@ -468,18 +475,19 @@ void Creature::onCreatureMove(Creature* creature, const Tile* newTile, const Pos
 		}
 
 		if (!summons.empty()) {
-			//check if any of our summons is out of range (+/- 2 floors or 30 tiles away)
-			std::forward_list<Creature*> despawnList;
-			for (Creature* summon : summons) {
-				const Position& pos = summon->getPosition();
-				if (Position::getDistanceZ(newPos, pos) > 2 || (std::max<int32_t>(Position::getDistanceX(newPos, pos), Position::getDistanceY(newPos, pos)) > 30)) {
-					despawnList.push_front(summon);
+			if (creature->getPlayer()) {
+				//check if any of player pokemon is out of range configured in config.lua)
+				for (Creature* summon : summons) {
+					const Position& pos = summon->getPosition();
+					if (Position::getDistanceZ(newPos, pos) >= g_config.getNumber(ConfigManager::TELEPORT_TO_PLAYER_FLOOR) || (std::max<int32_t>(Position::getDistanceX(newPos, pos), Position::getDistanceY(newPos, pos)) >= g_config.getNumber(ConfigManager::TELEPORT_TO_PLAYER_TILES))) {
+						Pokemon* pokemon = summon->getPokemon();
+						
+						if (pokemon && !pokemon->teleportToPlayer()) {
+							pokemon->needTeleportToPlayer = true;
+						}
+					}
 				}
-			}
-
-			for (Creature* despawnCreature : despawnList) {
-				g_game.removeCreature(despawnCreature, true);
-			}
+			}			
 		}
 
 		if (newTile->getZone() != oldTile->getZone()) {
@@ -683,43 +691,37 @@ void Creature::onDeath()
 
 bool Creature::dropCorpse(Creature* lastHitCreature, Creature* mostDamageCreature, bool lastHitUnjustified, bool mostDamageUnjustified)
 {
-	if (!lootDrop && getMonster()) {
-		if (master) {
+	if (!lootDrop && getPokemon()) {
+		if (getMaster()) {
+			Player* player = getMaster()->getPlayer();
+			if (player) {
+				const PokeballType* pbType = getPokemon()->getPokeballType();
+				if (pbType) {
+					g_game.addEffect(getPosition(), pbType->getGobackEffect());
+				}
+			}
+
 			//scripting event - onDeath
 			const CreatureEventList& deathEvents = getCreatureEvents(CREATURE_EVENT_DEATH);
 			for (CreatureEvent* deathEvent : deathEvents) {
 				deathEvent->executeOnDeath(this, nullptr, lastHitCreature, mostDamageCreature, lastHitUnjustified, mostDamageUnjustified);
 			}
+		} else{
+			g_game.addEffect(getPosition(), CONST_ME_POFF);
 		}
-
-		g_game.addMagicEffect(getPosition(), CONST_ME_POFF);
 	} else {
-		Item* splash;
-		switch (getRace()) {
-			case RACE_VENOM:
-				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_GREEN);
-				break;
-
-			case RACE_BLOOD:
-				splash = Item::CreateItem(ITEM_FULLSPLASH, FLUID_BLOOD);
-				break;
-
-			default:
-				splash = nullptr;
-				break;
-		}
-
 		Tile* tile = getTile();
-
-		if (splash) {
-			g_game.internalAddItem(tile, splash, INDEX_WHEREEVER, FLAG_NOLIMIT);
-			g_game.startDecay(splash);
-		}
 
 		Item* corpse = getCorpse(lastHitCreature, mostDamageCreature);
 		if (corpse) {
 			g_game.internalAddItem(tile, corpse, INDEX_WHEREEVER, FLAG_NOLIMIT);
 			g_game.startDecay(corpse);
+		}
+
+		Player* player = getPlayer();
+		if (player && player->getHisPokemon()) {
+			Item* item = player->getInventoryItem(CONST_SLOT_POKEBALL);
+			player->gobackPokemon(item);
 		}
 
 		//scripting event - onDeath
@@ -759,6 +761,13 @@ void Creature::changeHealth(int32_t healthChange, bool sendHealthChange/* = true
 		health = std::max<int32_t>(0, health + healthChange);
 	}
 
+	if (isSummon() && getMaster()->getPlayer()) {
+		Player* player = getMaster()->getPlayer();
+
+		player->setPokemonHealth(health);
+		player->sendStats();
+	}
+
 	if (sendHealthChange && oldHealth != health) {
 		g_game.addCreatureHealth(this);
 	}
@@ -782,53 +791,17 @@ void Creature::drainHealth(Creature* attacker, int32_t damage)
 }
 
 BlockType_t Creature::blockHit(Creature* attacker, CombatType_t combatType, int32_t& damage,
-                               bool checkDefense /* = false */, bool checkArmor /* = false */, bool /* field  = false */)
+                                bool /* field  = false */)
 {
 	BlockType_t blockType = BLOCK_NONE;
 
 	if (isImmune(combatType)) {
 		damage = 0;
 		blockType = BLOCK_IMMUNITY;
-	} else if (checkDefense || checkArmor) {
-		bool hasDefense = false;
-
-		if (blockCount > 0) {
-			--blockCount;
-			hasDefense = true;
-		}
-
-		if (checkDefense && hasDefense && canUseDefense) {
-			int32_t defense = getDefense();
-			damage -= uniform_random(defense / 2, defense);
-			if (damage <= 0) {
-				damage = 0;
-				blockType = BLOCK_DEFENSE;
-				checkArmor = false;
-			}
-		}
-
-		if (checkArmor) {
-			int32_t armor = getArmor();
-			if (armor > 3) {
-				damage -= uniform_random(armor / 2, armor - (armor % 2 + 1));
-			} else if (armor > 0) {
-				--damage;
-			}
-
-			if (damage <= 0) {
-				damage = 0;
-				blockType = BLOCK_ARMOR;
-			}
-		}
-
-		if (hasDefense && blockType != BLOCK_NONE) {
-			onBlockHit();
-		}
 	}
 
 	if (attacker) {
 		attacker->onAttackedCreature(this);
-		attacker->onAttackedCreatureBlockHit(blockType);
 	}
 
 	onAttacked();
@@ -872,14 +845,14 @@ void Creature::goToFollowCreature()
 		FindPathParams fpp;
 		getPathSearchParams(followCreature, fpp);
 
-		Monster* monster = getMonster();
-		if (monster && !monster->getMaster() && (monster->isFleeing() || fpp.maxTargetDist > 1)) {
+		Pokemon* pokemon = getPokemon();
+		if (pokemon && !pokemon->getMaster() && (pokemon->isFleeing() || fpp.maxTargetDist > 1)) {
 			Direction dir = DIRECTION_NONE;
 
-			if (monster->isFleeing()) {
-				monster->getDistanceStep(followCreature->getPosition(), dir, true);
+			if (pokemon->isFleeing()) {
+				pokemon->getDistanceStep(followCreature->getPosition(), dir, true);
 			} else { //maxTargetDist > 1
-				if (!monster->getDistanceStep(followCreature->getPosition(), dir)) {
+				if (!pokemon->getDistanceStep(followCreature->getPosition(), dir)) {
 					// if we can't get anything then let the A* calculate
 					listWalkDir.clear();
 					if (getPathTo(followCreature->getPosition(), listWalkDir, fpp)) {
@@ -1022,22 +995,22 @@ void Creature::onTickCondition(ConditionType_t type, bool& bRemove)
 			bRemove = (field->getCombatType() != COMBAT_FIREDAMAGE);
 			break;
 		case CONDITION_ENERGY:
-			bRemove = (field->getCombatType() != COMBAT_ENERGYDAMAGE);
+			bRemove = (field->getCombatType() != COMBAT_ELECTRICDAMAGE);
 			break;
 		case CONDITION_POISON:
-			bRemove = (field->getCombatType() != COMBAT_EARTHDAMAGE);
+			bRemove = (field->getCombatType() != COMBAT_GRASSDAMAGE);
 			break;
 		case CONDITION_FREEZING:
 			bRemove = (field->getCombatType() != COMBAT_ICEDAMAGE);
 			break;
 		case CONDITION_DAZZLED:
-			bRemove = (field->getCombatType() != COMBAT_HOLYDAMAGE);
+			bRemove = (field->getCombatType() != COMBAT_BUGDAMAGE);
 			break;
 		case CONDITION_CURSED:
-			bRemove = (field->getCombatType() != COMBAT_DEATHDAMAGE);
+			bRemove = (field->getCombatType() != COMBAT_DARKDAMAGE);
 			break;
 		case CONDITION_DROWN:
-			bRemove = (field->getCombatType() != COMBAT_DROWNDAMAGE);
+			bRemove = (field->getCombatType() != COMBAT_WATERDAMAGE);
 			break;
 		case CONDITION_BLEEDING:
 			bRemove = (field->getCombatType() != COMBAT_PHYSICALDAMAGE);
@@ -1082,23 +1055,7 @@ void Creature::onGainExperience(uint64_t gainExp, Creature* target)
 		return;
 	}
 
-	gainExp /= 2;
 	master->onGainExperience(gainExp, target);
-
-	SpectatorHashSet spectators;
-	g_game.map.getSpectators(spectators, position, false, true);
-	if (spectators.empty()) {
-		return;
-	}
-
-	TextMessage message(MESSAGE_EXPERIENCE_OTHERS, ucfirst(getNameDescription()) + " gained " + std::to_string(gainExp) + (gainExp != 1 ? " experience points." : " experience point."));
-	message.position = position;
-	message.primary.color = TEXTCOLOR_WHITE_EXP;
-	message.primary.value = gainExp;
-
-	for (Creature* spectator : spectators) {
-		spectator->getPlayer()->sendTextMessage(message);
-	}
 }
 
 bool Creature::setMaster(Creature* newMaster) {
@@ -1166,6 +1123,30 @@ bool Creature::addCombatCondition(Condition* condition)
 
 	onAddCombatCondition(type);
 	return true;
+}
+
+void Creature::cleanConditions()
+{
+	auto it = conditions.begin(), end = conditions.end();
+	while (it != end) {
+		Condition* condition = *it;
+		ConditionType_t type = condition->getType();
+
+		if (type == CONDITION_PARALYZE || type == CONDITION_SLEEP) {
+			int64_t walkDelay = getWalkDelay();
+			if (walkDelay > 0) {
+				g_scheduler.addEvent(createSchedulerTask(walkDelay, std::bind(&Game::forceRemoveCondition, &g_game, getID(), type)));
+				return;
+			}
+		}
+
+		it = conditions.erase(it);
+
+		condition->endCondition(this);
+		delete condition;
+
+		onEndCondition(type);
+	}
 }
 
 void Creature::removeCondition(ConditionType_t type, bool force/* = false*/)
@@ -1373,8 +1354,8 @@ int64_t Creature::getStepDuration() const
 	double duration = std::floor(1000 * groundSpeed / calculatedStepSpeed);
 	int64_t stepDuration = std::ceil(duration / 50) * 50;
 
-	const Monster* monster = getMonster();
-	if (monster && monster->isTargetNearby() && !monster->isFleeing() && !monster->getMaster()) {
+	const Pokemon* pokemon = getPokemon();
+	if (pokemon && pokemon->isTargetNearby() && !pokemon->isFleeing() && !pokemon->getMaster()) {
 		stepDuration *= 2;
 	}
 

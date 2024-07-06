@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,6 +74,7 @@ Item* Container::clone() const
 		clone->addItem(item->clone());
 	}
 	clone->totalWeight = totalWeight;
+	clone->totalPokemon = totalPokemon;
 	return clone;
 }
 
@@ -137,6 +139,7 @@ bool Container::unserializeItemNode(OTB::Loader& loader, const OTB::Node& node, 
 
 		addItem(item);
 		updateItemWeight(item->getWeight());
+		updateItemPokemonCount(item->getPokemonCount());
 	}
 	return true;
 }
@@ -152,6 +155,19 @@ void Container::updateItemWeight(int32_t diff)
 uint32_t Container::getWeight() const
 {
 	return Item::getWeight() + totalWeight;
+}
+
+void Container::updateItemPokemonCount(int32_t diff)
+{
+	totalPokemon += diff;
+	if (Container* parentContainer = getParentContainer()) {
+		parentContainer->updateItemPokemonCount(diff);
+	}
+}
+
+uint8_t Container::getPokemonCount() const
+{
+	return totalPokemon;
 }
 
 std::string Container::getContentDescription() const
@@ -288,6 +304,10 @@ ReturnValue Container::queryAdd(int32_t index, const Thing& thing, uint32_t coun
 		return RETURNVALUE_THISISIMPOSSIBLE;
 	}
 
+	if (this->getContainerType() != ITEM_TYPE_NONE && this->getContainerType() != item->getItemType()) {
+		return RETURNVALUE_YOUCANNOTPUTTHISITEM;
+	}
+
 	const Cylinder* cylinder = getParent();
 	if (!hasBitSet(FLAG_NOLIMIT, flags)) {
 		while (cylinder) {
@@ -346,8 +366,8 @@ ReturnValue Container::queryMaxCount(int32_t index, const Thing& thing, uint32_t
 			//Iterate through every item and check how much free stackable slots there is.
 			uint32_t slotIndex = 0;
 			for (Item* containerItem : itemlist) {
-				if (containerItem != item && containerItem->equals(item) && containerItem->getItemCount() < 100) {
-					uint32_t remainder = (100 - containerItem->getItemCount());
+				if (containerItem != item && containerItem->equals(item) && containerItem->getItemCount() < item->getItemMaxCount()) {
+					uint32_t remainder = (item->getItemMaxCount() - containerItem->getItemCount());
 					if (queryAdd(slotIndex++, *item, remainder, flags) == RETURNVALUE_NOERROR) {
 						n += remainder;
 					}
@@ -355,15 +375,15 @@ ReturnValue Container::queryMaxCount(int32_t index, const Thing& thing, uint32_t
 			}
 		} else {
 			const Item* destItem = getItemByIndex(index);
-			if (item->equals(destItem) && destItem->getItemCount() < 100) {
-				uint32_t remainder = 100 - destItem->getItemCount();
+			if (item->equals(destItem) && destItem->getItemCount() < item->getItemMaxCount()) {
+				uint32_t remainder = item->getItemMaxCount() - destItem->getItemCount();
 				if (queryAdd(index, *item, remainder, flags) == RETURNVALUE_NOERROR) {
 					n = remainder;
 				}
 			}
 		}
 
-		maxQueryCount = freeSlots * 100 + n;
+		maxQueryCount = freeSlots * item->getItemMaxCount() + n;
 		if (maxQueryCount < count) {
 			return RETURNVALUE_CONTAINERNOTENOUGHROOM;
 		}
@@ -456,7 +476,7 @@ Cylinder* Container::queryDestination(int32_t& index, const Thing& thing, Item**
 		//try find a suitable item to stack with
 		uint32_t n = 0;
 		for (Item* listItem : itemlist) {
-			if (listItem != item && listItem->equals(item) && listItem->getItemCount() < 100) {
+			if (listItem != item && listItem->equals(item) && listItem->getItemCount() < item->getItemMaxCount()) {
 				*destItem = listItem;
 				index = n;
 				return this;
@@ -486,6 +506,7 @@ void Container::addThing(int32_t index, Thing* thing)
 	item->setParent(this);
 	itemlist.push_front(item);
 	updateItemWeight(item->getWeight());
+	updateItemPokemonCount(item->getPokemonCount());
 
 	//send change to client
 	if (getParent() && (getParent() != VirtualCylinder::virtualCylinder)) {
@@ -497,6 +518,7 @@ void Container::addItemBack(Item* item)
 {
 	addItem(item);
 	updateItemWeight(item->getWeight());
+	updateItemPokemonCount(item->getPokemonCount());
 
 	//send change to client
 	if (getParent() && (getParent() != VirtualCylinder::virtualCylinder)) {
@@ -517,9 +539,11 @@ void Container::updateThing(Thing* thing, uint16_t itemId, uint32_t count)
 	}
 
 	const int32_t oldWeight = item->getWeight();
+	const int8_t oldPokemonCount = item->getPokemonCount();
 	item->setID(itemId);
 	item->setSubType(count);
 	updateItemWeight(-oldWeight + item->getWeight());
+	updateItemPokemonCount(-oldPokemonCount + item->getPokemonCount());
 
 	//send change to client
 	if (getParent()) {
@@ -542,6 +566,7 @@ void Container::replaceThing(uint32_t index, Thing* thing)
 	itemlist[index] = item;
 	item->setParent(this);
 	updateItemWeight(-static_cast<int32_t>(replacedItem->getWeight()) + item->getWeight());
+	updateItemPokemonCount(-static_cast<int8_t>(replacedItem->getPokemonCount()) + item->getPokemonCount());
 
 	//send change to client
 	if (getParent()) {
@@ -564,10 +589,12 @@ void Container::removeThing(Thing* thing, uint32_t count)
 	}
 
 	if (item->isStackable() && count != item->getItemCount()) {
-		uint8_t newCount = static_cast<uint8_t>(std::max<int32_t>(0, item->getItemCount() - count));
+		uint16_t newCount = static_cast<uint16_t>(std::max<int32_t>(0, item->getItemCount() - count));
 		const int32_t oldWeight = item->getWeight();
+		const int32_t oldPokemonCount = item->getPokemonCount();
 		item->setItemCount(newCount);
 		updateItemWeight(-oldWeight + item->getWeight());
+		updateItemPokemonCount(-oldPokemonCount + item->getPokemonCount());
 
 		//send change to client
 		if (getParent()) {
@@ -575,6 +602,7 @@ void Container::removeThing(Thing* thing, uint32_t count)
 		}
 	} else {
 		updateItemWeight(-static_cast<int32_t>(item->getWeight()));
+		updateItemPokemonCount(-static_cast<int8_t>(item->getPokemonCount()));
 
 		//send change to client
 		if (getParent()) {
@@ -677,6 +705,7 @@ void Container::internalAddThing(uint32_t, Thing* thing)
 	item->setParent(this);
 	itemlist.push_front(item);
 	updateItemWeight(item->getWeight());
+	updateItemPokemonCount(item->getPokemonCount());
 }
 
 void Container::startDecaying()

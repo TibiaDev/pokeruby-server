@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -121,8 +122,8 @@ void ProtocolStatus::sendStatusString()
 	players.append_attribute("max") = std::to_string(g_config.getNumber(ConfigManager::MAX_PLAYERS)).c_str();
 	players.append_attribute("peak") = std::to_string(g_game.getPlayersRecord()).c_str();
 
-	pugi::xml_node monsters = tsqp.append_child("monsters");
-	monsters.append_attribute("total") = std::to_string(g_game.getMonstersOnline()).c_str();
+	pugi::xml_node pokemons = tsqp.append_child("pokemon");
+	pokemons.append_attribute("total") = std::to_string(g_game.getPokemonsOnline()).c_str();
 
 	pugi::xml_node npcs = tsqp.append_child("npcs");
 	npcs.append_attribute("total") = std::to_string(g_game.getNpcsOnline()).c_str();
@@ -131,8 +132,8 @@ void ProtocolStatus::sendStatusString()
 	rates.append_attribute("experience") = std::to_string(g_config.getNumber(ConfigManager::RATE_EXPERIENCE)).c_str();
 	rates.append_attribute("skill") = std::to_string(g_config.getNumber(ConfigManager::RATE_SKILL)).c_str();
 	rates.append_attribute("loot") = std::to_string(g_config.getNumber(ConfigManager::RATE_LOOT)).c_str();
-	rates.append_attribute("magic") = std::to_string(g_config.getNumber(ConfigManager::RATE_MAGIC)).c_str();
 	rates.append_attribute("spawn") = std::to_string(g_config.getNumber(ConfigManager::RATE_SPAWN)).c_str();
+	rates.append_attribute("catch") = std::to_string(g_config.getNumber(ConfigManager::RATE_CATCH)).c_str();
 
 	pugi::xml_node map = tsqp.append_child("map");
 	map.append_attribute("name") = g_config.getString(ConfigManager::MAP_NAME).c_str();

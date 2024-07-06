@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,19 +34,19 @@ using CreatureEventList = std::list<CreatureEvent*>;
 
 enum slots_t : uint8_t {
 	CONST_SLOT_WHEREEVER = 0,
-	CONST_SLOT_HEAD = 1,
-	CONST_SLOT_NECKLACE = 2,
+	CONST_SLOT_ROD = 1,
+	CONST_SLOT_POKEDEX = 2,
 	CONST_SLOT_BACKPACK = 3,
-	CONST_SLOT_ARMOR = 4,
+	CONST_SLOT_ORDER = 4,
 	CONST_SLOT_RIGHT = 5,
 	CONST_SLOT_LEFT = 6,
-	CONST_SLOT_LEGS = 7,
-	CONST_SLOT_FEET = 8,
-	CONST_SLOT_RING = 9,
-	CONST_SLOT_AMMO = 10,
+	CONST_SLOT_PORTRAIT = 7,
+	CONST_SLOT_POKEBALL = 8,
+	CONST_SLOT_PICK = 9,
+	CONST_SLOT_SUPPORT = 10,
 
-	CONST_SLOT_FIRST = CONST_SLOT_HEAD,
-	CONST_SLOT_LAST = CONST_SLOT_AMMO,
+	CONST_SLOT_FIRST = CONST_SLOT_ROD,
+	CONST_SLOT_LAST = CONST_SLOT_SUPPORT,
 };
 
 struct FindPathParams {
@@ -62,13 +63,14 @@ class Map;
 class Thing;
 class Container;
 class Player;
-class Monster;
+class Pokemon;
 class Npc;
 class Item;
 class Tile;
+class FoodType;
 
 static constexpr int32_t EVENT_CREATURECOUNT = 10;
-static constexpr int32_t EVENT_CREATURE_THINK_INTERVAL = 1000;
+static constexpr int32_t EVENT_CREATURE_THINK_INTERVAL = 500;
 static constexpr int32_t EVENT_CHECK_CREATURE_INTERVAL = (EVENT_CREATURE_THINK_INTERVAL / EVENT_CREATURECOUNT);
 
 class FrozenPathingConditionCall
@@ -122,21 +124,32 @@ class Creature : virtual public Thing
 		virtual const Npc* getNpc() const {
 			return nullptr;
 		}
-		virtual Monster* getMonster() {
+		virtual Pokemon* getPokemon() {
 			return nullptr;
 		}
-		virtual const Monster* getMonster() const {
+		virtual const Pokemon* getPokemon() const {
 			return nullptr;
 		}
 
-		virtual const std::string& getName() const = 0;
+		void setName(std::string name) {
+			this->name = name;
+		}
+		const std::string& getName() const {
+			return name;
+		}
 		virtual const std::string& getNameDescription() const = 0;
 
+		virtual const NameColor_t getNameColor() const {
+			return NAMECOLOR_GREEN;
+		}
 		virtual CreatureType_t getType() const = 0;
 
 		virtual void setID() = 0;
 		void setRemoved() {
 			isInternalRemoved = true;
+		}
+		void setNotRemoved() {
+			isInternalRemoved = false;
 		}
 
 		uint32_t getID() const {
@@ -148,16 +161,16 @@ class Creature : virtual public Thing
 		virtual bool canSee(const Position& pos) const;
 		virtual bool canSeeCreature(const Creature* creature) const;
 
-		virtual RaceType_t getRace() const {
-			return RACE_NONE;
+		virtual BloodType_t getBlood() const {
+			return BLOOD_NONE;
 		}
-		virtual Skulls_t getSkull() const {
-			return skull;
+		virtual Genders_t getGender() const {
+			return gender;
 		}
-		virtual Skulls_t getSkullClient(const Creature* creature) const {
-			return creature->getSkull();
+		virtual Genders_t getGenderClient(const Creature* creature) const {
+			return creature->getGender();
 		}
-		void setSkull(Skulls_t newSkull);
+		void setGender(Genders_t newGender);
 		Direction getDirection() const {
 			return direction;
 		}
@@ -198,8 +211,8 @@ class Creature : virtual public Thing
 		virtual int32_t getStepSpeed() const {
 			return getSpeed();
 		}
-		int32_t getSpeed() const {
-			return baseSpeed + varSpeed;
+		virtual int32_t getSpeed() const {
+			return getBaseSpeed() + varSpeed;
 		}
 		void setSpeed(int32_t varSpeedDelta) {
 			int32_t oldSpeed = getSpeed();
@@ -216,7 +229,7 @@ class Creature : virtual public Thing
 		void setBaseSpeed(uint32_t newBaseSpeed) {
 			baseSpeed = newBaseSpeed;
 		}
-		uint32_t getBaseSpeed() const {
+		virtual uint32_t getBaseSpeed() const {
 			return baseSpeed;
 		}
 
@@ -232,6 +245,9 @@ class Creature : virtual public Thing
 		}
 		void setCurrentOutfit(Outfit_t outfit) {
 			currentOutfit = outfit;
+		}
+		void setDefaultOutfit(Outfit_t outfit) {
+			defaultOutfit = outfit;
 		}
 		const Outfit_t getDefaultOutfit() const {
 			return defaultOutfit;
@@ -268,9 +284,9 @@ class Creature : virtual public Thing
 		}
 		virtual bool setAttackedCreature(Creature* creature);
 		virtual BlockType_t blockHit(Creature* attacker, CombatType_t combatType, int32_t& damage,
-		                             bool checkDefense = false, bool checkArmor = false, bool field = false);
+		                             bool field = false);
 
-		bool setMaster(Creature* newMaster);
+		virtual bool setMaster(Creature* newMaster);
 
 		void removeMaster() {
 			if (master) {
@@ -290,11 +306,17 @@ class Creature : virtual public Thing
 			return summons;
 		}
 
-		virtual int32_t getArmor() const {
-			return 0;
+		virtual float getDefense() const {
+			return 1.0f;
 		}
-		virtual int32_t getDefense() const {
-			return 0;
+		virtual float getSpecialDefense() const {
+			return 1.0f;
+		}
+		virtual float getAttack() const {
+			return 1.0f;
+		}
+		virtual float getSpecialAttack() const {
+			return 1.0f;
 		}
 		virtual float getAttackFactor() const {
 			return 1.0f;
@@ -359,8 +381,6 @@ class Creature : virtual public Thing
 		virtual void onTargetCreatureGainHealth(Creature*, int32_t) {}
 		virtual bool onKilledCreature(Creature* target, bool lastHit = true);
 		virtual void onGainExperience(uint64_t gainExp, Creature* target);
-		virtual void onAttackedCreatureBlockHit(BlockType_t) {}
-		virtual void onBlockHit() {}
 		virtual void onChangeZone(ZoneType_t zone);
 		virtual void onAttackedCreatureChangeZone(ZoneType_t zone);
 		virtual void onIdleStatus();
@@ -457,6 +477,17 @@ class Creature : virtual public Thing
 			}
 		}
 
+		bool needTeleportToPlayer = false;
+
+		void cleanConditions();
+		virtual bool feed(const FoodType* foodType) {
+			return false;
+		}
+
+		bool isPersistent() const {
+			return persistent;
+		}
+
 	protected:
 		virtual bool useCacheMap() const {
 			return false;
@@ -473,6 +504,7 @@ class Creature : virtual public Thing
 		static constexpr int32_t maxWalkCacheHeight = (mapWalkHeight - 1) / 2;
 
 		Position position;
+		std::string name;
 
 		using CountMap = std::map<uint32_t, CountBlock_t>;
 		CountMap damageMap;
@@ -510,7 +542,7 @@ class Creature : virtual public Thing
 		LightInfo internalLight;
 
 		Direction direction = DIRECTION_SOUTH;
-		Skulls_t skull = SKULL_NONE;
+		Genders_t gender = GENDER_NONE;
 
 		bool localMapCache[mapWalkHeight][mapWalkWidth] = {{ false }};
 		bool isInternalRemoved = false;
@@ -525,6 +557,7 @@ class Creature : virtual public Thing
 		bool forceUpdateFollowPath = false;
 		bool hiddenHealth = false;
 		bool canUseDefense = true;
+		bool persistent = false;
 
 		//creature script events
 		bool hasEventRegistered(CreatureEventType_t event) const {
@@ -556,6 +589,7 @@ class Creature : virtual public Thing
 		friend class Game;
 		friend class Map;
 		friend class LuaScriptInterface;
+		friend class ConditionSleep;
 };
 
 #endif

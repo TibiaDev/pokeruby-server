@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,7 +81,7 @@ enum AttrTypes_t {
 	ATTR_ITEM = 9,
 	ATTR_DEPOT_ID = 10,
 	//ATTR_EXT_SPAWN_FILE = 11,
-	ATTR_RUNE_CHARGES = 12,
+	//ATTR_RUNE_CHARGES = 12,
 	//ATTR_EXT_HOUSE_FILE = 13,
 	ATTR_HOUSEDOORID = 14,
 	ATTR_COUNT = 15,
@@ -90,19 +91,25 @@ enum AttrTypes_t {
 	ATTR_WRITTENBY = 19,
 	ATTR_SLEEPERGUID = 20,
 	ATTR_SLEEPSTART = 21,
-	ATTR_CHARGES = 22,
+	// 22 integer
 	ATTR_CONTAINER_ITEMS = 23,
 	ATTR_NAME = 24,
 	ATTR_ARTICLE = 25,
 	ATTR_PLURALNAME = 26,
 	ATTR_WEIGHT = 27,
-	ATTR_ATTACK = 28,
-	ATTR_DEFENSE = 29,
-	ATTR_EXTRADEFENSE = 30,
-	ATTR_ARMOR = 31,
-	ATTR_HITCHANCE = 32,
-	ATTR_SHOOTRANGE = 33,
-	ATTR_CUSTOM_ATTRIBUTES = 34
+	// 28 integer
+	ATTR_POKEBALLID = 29,
+	// 30 integer
+	// 31 integer
+	// 32 integer
+	// 33 integer
+	ATTR_CUSTOM_ATTRIBUTES = 34,
+	ATTR_PRICE = 35,
+	ATTR_POKEMONCORPSEGENDER = 36,
+	ATTR_POKEMONCORPSETYPE = 37,
+	ATTR_POKEMONID = 38,
+	ATTR_POKEMONCORPSENATURE = 39,
+	ATTR_CORPSEPOKEMONSHINYSTATUS = 40
 };
 
 enum Attr_ReadValue {
@@ -167,13 +174,6 @@ class ItemAttributes
 			return static_cast<uint16_t>(getIntAttr(ITEM_ATTRIBUTE_UNIQUEID));
 		}
 
-		void setCharges(uint16_t n) {
-			setIntAttr(ITEM_ATTRIBUTE_CHARGES, n);
-		}
-		uint16_t getCharges() const {
-			return static_cast<uint16_t>(getIntAttr(ITEM_ATTRIBUTE_CHARGES));
-		}
-
 		void setFluidType(uint16_t n) {
 			setIntAttr(ITEM_ATTRIBUTE_FLUIDTYPE, n);
 		}
@@ -193,6 +193,53 @@ class ItemAttributes
 		}
 		uint32_t getCorpseOwner() const {
 			return getIntAttr(ITEM_ATTRIBUTE_CORPSEOWNER);
+		}
+
+		void setPokemonCorpseGender(Genders_t corpseGender) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSEGENDER, corpseGender);
+		}
+		Genders_t getPokemonCorpseGender() const {
+			return static_cast<Genders_t>(getIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSEGENDER));
+		}
+
+		void setPokemonCorpseType(const std::string& type) {
+			setStrAttr(ITEM_ATTRIBUTE_POKEMONCORPSETYPE, type);
+		}
+		const std::string& getPokemonCorpseType() const {
+			return getStrAttr(ITEM_ATTRIBUTE_POKEMONCORPSETYPE);
+		}
+
+		void setPokemonId(uint32_t pokemonId) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONID, pokemonId);
+		}
+		uint32_t getPokemonId() const {
+			return getIntAttr(ITEM_ATTRIBUTE_POKEMONID);
+		}
+
+		void setPokemonCorpseNature(Natures_t nature) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSENATURE, nature);
+		}
+		Natures_t getPokemonCorpseNature() const {
+			return static_cast<Natures_t>(getIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSENATURE));
+		}
+
+		void setPokemonCorpseShinyStatus(uint8_t pokemoncorpseshinystatus) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSESHINYSTATUS, pokemoncorpseshinystatus);
+		}
+		uint8_t getPokemonCorpseShinyStatus() const {
+			return getIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSESHINYSTATUS);
+		}
+
+		void setName(const std::string& name) {
+			setStrAttr(ITEM_ATTRIBUTE_NAME, name);
+		}
+
+		void setDescription(const std::string& description) {
+			setStrAttr(ITEM_ATTRIBUTE_DESCRIPTION, description);
+		}
+
+		void setPrice(const int32_t price) {
+			setIntAttr(ITEM_ATTRIBUTE_PRICE, price);
 		}
 
 		void setDuration(int32_t time) {
@@ -497,10 +544,10 @@ class ItemAttributes
 
 	public:
 		static bool isIntAttrType(itemAttrTypes type) {
-			return (type & 0x7FFE13) != 0;
+			return (type & 0x15FFFE13) != 0;
 		}
 		static bool isStrAttrType(itemAttrTypes type) {
-			return (type & 0x1EC) != 0;
+			return (type & 0xA0001EC) != 0;
 		}
 		inline static bool isCustomAttrType(itemAttrTypes type) {
 			return (type & 0x80000000) != 0;
@@ -695,16 +742,6 @@ class Item : virtual public Thing
 			return static_cast<uint16_t>(getIntAttr(ITEM_ATTRIBUTE_UNIQUEID));
 		}
 
-		void setCharges(uint16_t n) {
-			setIntAttr(ITEM_ATTRIBUTE_CHARGES, n);
-		}
-		uint16_t getCharges() const {
-			if (!attributes) {
-				return 0;
-			}
-			return static_cast<uint16_t>(getIntAttr(ITEM_ATTRIBUTE_CHARGES));
-		}
-
 		void setFluidType(uint16_t n) {
 			setIntAttr(ITEM_ATTRIBUTE_FLUIDTYPE, n);
 		}
@@ -724,7 +761,7 @@ class Item : virtual public Thing
 			}
 			return getIntAttr(ITEM_ATTRIBUTE_OWNER);
 		}
-
+		
 		void setCorpseOwner(uint32_t corpseOwner) {
 			setIntAttr(ITEM_ATTRIBUTE_CORPSEOWNER, corpseOwner);
 		}
@@ -733,6 +770,65 @@ class Item : virtual public Thing
 				return 0;
 			}
 			return getIntAttr(ITEM_ATTRIBUTE_CORPSEOWNER);
+		}
+
+		void setPokemonCorpseGender(Genders_t corpseGender) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSEGENDER, corpseGender);
+		}
+		Genders_t getPokemonCorpseGender() const {
+			if (!attributes) {
+				return GENDER_NONE;
+			}
+			return static_cast<Genders_t>(getIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSEGENDER));
+		}
+
+		void setPokemonCorpseType(const std::string& type) {
+			setStrAttr(ITEM_ATTRIBUTE_POKEMONCORPSETYPE, type);
+		}
+		const std::string& getPokemonCorpseType() const {
+			return getStrAttr(ITEM_ATTRIBUTE_POKEMONCORPSETYPE);
+		}
+
+		void setPokemonId(uint32_t pokemonId) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONID, pokemonId);
+		}
+		uint32_t getPokemonId() const {
+			if (!attributes) {
+				return 0;
+			}
+			return getIntAttr(ITEM_ATTRIBUTE_POKEMONID);
+		}
+
+		void setPokemonCorpseNature(Natures_t nature) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSENATURE, nature);
+		}
+		Natures_t getPokemonCorpseNature() const {
+			if (!attributes) {
+				return NATURE_NONE;
+			}
+			return static_cast<Natures_t>(getIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSENATURE));
+		}
+
+		void setPokemonCorpseShinyStatus(uint8_t pokemoncorpseshinystatus) {
+			setIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSESHINYSTATUS, pokemoncorpseshinystatus);
+		}
+		uint8_t getPokemonCorpseShinyStatus() const {
+			if (!attributes) {
+				return 0;
+			}
+			return getIntAttr(ITEM_ATTRIBUTE_POKEMONCORPSESHINYSTATUS);
+		}
+
+		void setName(const std::string& name) {
+			setStrAttr(ITEM_ATTRIBUTE_NAME, name);
+		}
+
+		void setDescription(const std::string& description) {
+			setStrAttr(ITEM_ATTRIBUTE_DESCRIPTION, description);
+		}
+
+		void setPrice(const int32_t price) {
+			setIntAttr(ITEM_ATTRIBUTE_PRICE, price);
 		}
 
 		void setDuration(int32_t time) {
@@ -761,10 +857,13 @@ class Item : virtual public Thing
 		static std::string getDescription(const ItemType& it, int32_t lookDistance, const Item* item = nullptr, int32_t subType = -1, bool addArticle = true);
 		static std::string getNameDescription(const ItemType& it, const Item* item = nullptr, int32_t subType = -1, bool addArticle = true);
 		static std::string getWeightDescription(const ItemType& it, uint32_t weight, uint32_t count = 1);
+		static std::string getPriceDescription(const ItemType& it, int32_t price);
 
 		std::string getDescription(int32_t lookDistance) const override final;
 		std::string getNameDescription() const;
 		std::string getWeightDescription() const;
+		std::string getPriceDescription() const;
+
 
 		//serialization
 		virtual Attr_ReadValue readAttr(AttrTypes_t attr, PropStream& propStream);
@@ -791,19 +890,6 @@ class Item : virtual public Thing
 		// Returns the player that is holding this item in his inventory
 		Player* getHoldingPlayer() const;
 
-		WeaponType_t getWeaponType() const {
-			return items[id].weaponType;
-		}
-		Ammo_t getAmmoType() const {
-			return items[id].ammoType;
-		}
-		uint8_t getShootRange() const {
-			if (hasAttribute(ITEM_ATTRIBUTE_SHOOTRANGE)) {
-				return getIntAttr(ITEM_ATTRIBUTE_SHOOTRANGE);
-			}
-			return items[id].shootRange;
-		}
-
 		virtual uint32_t getWeight() const;
 		uint32_t getBaseWeight() const {
 			if (hasAttribute(ITEM_ATTRIBUTE_WEIGHT)) {
@@ -811,41 +897,21 @@ class Item : virtual public Thing
 			}
 			return items[id].weight;
 		}
-		int32_t getAttack() const {
-			if (hasAttribute(ITEM_ATTRIBUTE_ATTACK)) {
-				return getIntAttr(ITEM_ATTRIBUTE_ATTACK);
+
+		virtual uint8_t getPokemonCount() const;
+
+		virtual int32_t getPrice() const;
+		int32_t getBasePrice() const {
+			if (hasAttribute(ITEM_ATTRIBUTE_PRICE)) {
+				return getIntAttr(ITEM_ATTRIBUTE_PRICE);
 			}
-			return items[id].attack;
-		}
-		int32_t getArmor() const {
-			if (hasAttribute(ITEM_ATTRIBUTE_ARMOR)) {
-				return getIntAttr(ITEM_ATTRIBUTE_ARMOR);
-			}
-			return items[id].armor;
-		}
-		int32_t getDefense() const {
-			if (hasAttribute(ITEM_ATTRIBUTE_DEFENSE)) {
-				return getIntAttr(ITEM_ATTRIBUTE_DEFENSE);
-			}
-			return items[id].defense;
-		}
-		int32_t getExtraDefense() const {
-			if (hasAttribute(ITEM_ATTRIBUTE_EXTRADEFENSE)) {
-				return getIntAttr(ITEM_ATTRIBUTE_EXTRADEFENSE);
-			}
-			return items[id].extraDefense;
+			return items[id].price;
 		}
 		int32_t getSlotPosition() const {
 			return items[id].slotPosition;
 		}
-		int8_t getHitChance() const {
-			if (hasAttribute(ITEM_ATTRIBUTE_HITCHANCE)) {
-				return getIntAttr(ITEM_ATTRIBUTE_HITCHANCE);
-			}
-			return items[id].hitChance;
-		}
 
-		uint32_t getWorth() const;
+		uint64_t getWorth() const;
 		LightInfo getLightInfo() const;
 
 		bool hasProperty(ITEMPROPERTY prop) const;
@@ -870,6 +936,15 @@ class Item : virtual public Thing
 		bool isPickupable() const {
 			return items[id].pickupable;
 		}
+		bool isCuttable() const {
+			return items[id].allowCuttable;
+		}
+		bool isSmashable() const {
+			return items[id].allowSmashable;
+		}
+		bool isDiggable() const {
+			return items[id].allowDiggable;
+		}
 		bool isUseable() const {
 			return items[id].useable;
 		}
@@ -882,6 +957,30 @@ class Item : virtual public Thing
 		}
 		bool hasWalkStack() const {
 			return items[id].walkStack;
+		}
+		bool isEvolutionStone() const {
+			return items[id].isEvolutionStone();
+		}
+		bool isFood() const {
+			return items[id].isFood();
+		}
+		bool isUsedPokeball() const {
+			return items[id].isUsedPokeball();
+		}
+		bool isUnusedPokeball() const {
+			return items[id].isUnusedPokeball();
+		}
+
+		uint16_t getItemMaxCount() const {
+			return items[id].getItemMaxCount();
+		}
+
+		ItemTypes_t getContainerType() const {
+			return items[id].containerType;
+		}
+
+		ItemTypes_t getItemType() const {
+			return items[id].type;
 		}
 
 		const std::string& getName() const {
@@ -907,7 +1006,7 @@ class Item : virtual public Thing
 		uint16_t getItemCount() const {
 			return count;
 		}
-		void setItemCount(uint8_t n) {
+		void setItemCount(uint16_t n) {
 			count = n;
 		}
 
@@ -996,12 +1095,13 @@ class Item : virtual public Thing
 
 	private:
 		std::string getWeightDescription(uint32_t weight) const;
+		std::string getPriceDescription(int32_t price) const;
 
 		std::unique_ptr<ItemAttributes> attributes;
 
 		uint32_t referenceCounter = 0;
 
-		uint8_t count = 1; // number of stacked items
+		uint16_t count = 1; // number of stacked items
 
 		bool loadedFromMap = false;
 

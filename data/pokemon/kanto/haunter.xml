@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="93"  name="Haunter" nameDescription="a Haunter" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="93" corpse="2910" />
+	<type first="ghost" second="poison" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2459" />
+	<icon charged="26496" discharged="26716" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />
+	</genders>
+	<basestats>
+		<hp value= "45" />
+		<attack value="50" />
+		<defense value="45" />
+		<specialAttack value="115" />
+		<specialDefense value="55" />
+		<speed value="95" />
+	</basestats>
+	<evolutions>
+		<evolution to="gengar" at="night" stone="8930" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />		
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+		<flag ghost="1" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

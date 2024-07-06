@@ -60,7 +60,7 @@ if Modules == nil then
 	end
 
 	--Usage:
-		-- local node1 = keywordHandler:addKeyword({"promot"}, StdModule.say, {npcHandler = npcHandler, text = "I can promote you for 20000 gold coins. Do you want me to promote you?"})
+		-- local node1 = keywordHandler:addKeyword({"promot"}, StdModule.say, {npcHandler = npcHandler, text = "I can promote you for 20000 dollars coins. Do you want me to promote you?"})
 		-- node1:addChildKeyword({"yes"}, StdModule.promotePlayer, {npcHandler = npcHandler, cost = 20000, level = 20}, text = "Congratulations! You are now promoted.")
 		-- node1:addChildKeyword({"no"}, StdModule.say, {npcHandler = npcHandler, text = "Allright then. Come back when you are ready."}, reset = true)
 	function StdModule.promotePlayer(cid, message, keywords, parameters, node)
@@ -75,7 +75,7 @@ if Modules == nil then
 
 		local player = Player(cid)
 		if player:isPremium() or not parameters.premium then
-			local promotion = player:getVocation():getPromotion()
+			local promotion = player:getProfession():getPromotion()
 			if player:getStorageValue(STORAGEVALUE_PROMOTION) == 1 then
 				npcHandler:say("You are already promoted!", cid)
 			elseif player:getLevel() < parameters.level then
@@ -84,7 +84,7 @@ if Modules == nil then
 				npcHandler:say("You do not have enough money!", cid)
 			else
 				npcHandler:say(parameters.text, cid)
-				player:setVocation(promotion)
+				player:setProfession(promotion)
 				player:setStorageValue(STORAGEVALUE_PROMOTION, 1)
 			end
 		else
@@ -94,10 +94,10 @@ if Modules == nil then
 		return true
 	end
 
-	function StdModule.learnSpell(cid, message, keywords, parameters, node)
+	function StdModule.learnMove(cid, message, keywords, parameters, node)
 		local npcHandler = parameters.npcHandler
 		if npcHandler == nil then
-			error("StdModule.learnSpell called without any npcHandler instance.")
+			error("StdModule.learnMove called without any npcHandler instance.")
 		end
 
 		if not npcHandler:isFocused(cid) then
@@ -106,18 +106,18 @@ if Modules == nil then
 
 		local player = Player(cid)
 		if player:isPremium() or not parameters.premium then
-			if player:hasLearnedSpell(parameters.spellName) then
-				npcHandler:say("You already know this spell.", cid)
-			elseif not player:canLearnSpell(parameters.spellName) then
-				npcHandler:say("You cannot learn this spell.", cid)
+			if player:hasLearnedMove(parameters.moveName) then
+				npcHandler:say("You already know this move.", cid)
+			elseif not player:canLearnMove(parameters.moveName) then
+				npcHandler:say("You cannot learn this move.", cid)
 			elseif not player:removeMoney(parameters.price) then
-				npcHandler:say("You do not have enough money, this spell costs " .. parameters.price .. " gold.", cid)
+				npcHandler:say("You do not have enough money, this move costs " .. parameters.price .. " dollars.", cid)
 			else
-				npcHandler:say("You have learned " .. parameters.spellName .. ".", cid)
-				player:learnSpell(parameters.spellName)
+				npcHandler:say("You have learned " .. parameters.moveName .. ".", cid)
+				player:learnMove(parameters.moveName)
 			end
 		else
-			npcHandler:say("You need a premium account in order to buy " .. parameters.spellName .. ".", cid)
+			npcHandler:say("You need a premium account in order to buy " .. parameters.moveName .. ".", cid)
 		end
 		npcHandler:resetNpc(cid)
 		return true
@@ -176,8 +176,8 @@ if Modules == nil then
 				local position = player:getPosition()
 				player:teleportTo(destination)
 
-				position:sendMagicEffect(CONST_ME_TELEPORT)
-				destination:sendMagicEffect(CONST_ME_TELEPORT)
+				position:sendEffect(CONST_ME_TELEPORT)
+				destination:sendEffect(CONST_ME_TELEPORT)
 			end
 		else
 			npcHandler:say("I'm sorry, but you need a premium account in order to travel onboard our ships.", cid)
@@ -421,7 +421,7 @@ if Modules == nil then
 		local destination = parameters.destination
 		local premium = parameters.premium
 
-		module.npcHandler:say("Do you want to travel to " .. keywords[1] .. " for " .. cost .. " gold coins?", cid)
+		module.npcHandler:say("Do you want to travel to " .. keywords[1] .. " for " .. cost .. " dollars?", cid)
 		return true
 	end
 
@@ -453,8 +453,8 @@ if Modules == nil then
 				local position = player:getPosition()
 				player:teleportTo(destination)
 
-				position:sendMagicEffect(CONST_ME_TELEPORT)
-				destination:sendMagicEffect(CONST_ME_TELEPORT)
+				position:sendEffect(CONST_ME_TELEPORT)
+				destination:sendEffect(CONST_ME_TELEPORT)
 			end
 		else
 			npcHandler:say("I can only allow premium players to travel there.", cid)
@@ -493,8 +493,8 @@ if Modules == nil then
 				local position = player:getPosition()
 				player:teleportTo(destination)
 
-				position:sendMagicEffect(CONST_ME_TELEPORT)
-				destination:sendMagicEffect(CONST_ME_TELEPORT)
+				position:sendEffect(CONST_ME_TELEPORT)
+				destination:sendEffect(CONST_ME_TELEPORT)
 			end
 		end
 		return true
@@ -531,7 +531,7 @@ if Modules == nil then
 		yesNode = nil,
 		noNode = nil,
 		noText = "",
-		maxCount = 100,
+		maxCount = configManager.getNumber(MAX_BUYORSELL_ITEMS),
 		amount = 0
 	}
 
@@ -593,9 +593,6 @@ if Modules == nil then
 			end
 
 			local it = ItemType(itemid)
-			if subType == nil and it:getCharges() ~= 0 then
-				subType = it:getCharges()
-			end
 
 			if SHOPMODULE_MODE == SHOPMODULE_MODE_TRADE then
 				if itemid and cost then
@@ -772,7 +769,7 @@ if Modules == nil then
 	--	names = A table containing one or more strings of alternative names to this item. Used only for old buy/sell system.
 	--	itemid = The itemid of the buyable item
 	--	cost = The price of one single item
-	--	subType - The subType of each rune or fluidcontainer item. Can be left out if it is not a rune/fluidcontainer. Default value is 1.
+	--	subType - The subType of each fluidcontainer item. Can be left out if it is not a fluidcontainer. Default value is 1.
 	--	realName - The real, full name for the item. Will be used as ITEMNAME in MESSAGE_ONBUY and MESSAGE_ONSELL if defined. Default value is nil (getItemName will be used)
 	function ShopModule:addBuyableItem(names, itemid, cost, itemSubType, realName)
 		if SHOPMODULE_MODE ~= SHOPMODULE_MODE_TALK then
@@ -839,7 +836,7 @@ if Modules == nil then
 	--	container = Backpack, bag or any other itemid of container where bought items will be stored
 	--	itemid = The itemid of the buyable item
 	--	cost = The price of one single item
-	--	subType - The subType of each rune or fluidcontainer item. Can be left out if it is not a rune/fluidcontainer. Default value is 1.
+	--	subType - The subType of each fluidcontainer item. Can be left out if it is not a fluidcontainer. Default value is 1.
 	--	realName - The real, full name for the item. Will be used as ITEMNAME in MESSAGE_ONBUY and MESSAGE_ONSELL if defined. Default value is nil (getItemName will be used)
 	function ShopModule:addBuyableItemContainer(names, container, itemid, cost, subType, realName)
 		if names then
@@ -932,7 +929,7 @@ if Modules == nil then
 		local parseInfo = {
 			[TAG_PLAYERNAME] = getPlayerName(cid),
 			[TAG_ITEMCOUNT] = amount,
-			[TAG_TOTALCOST] = totalCost,
+			[TAG_TOTALCOST] = totalCost / 100.0,
 			[TAG_ITEMNAME] = shopItem.name
 		}
 
@@ -989,7 +986,7 @@ if Modules == nil then
 		local parseInfo = {
 			[TAG_PLAYERNAME] = getPlayerName(cid),
 			[TAG_ITEMCOUNT] = amount,
-			[TAG_TOTALCOST] = amount * shopItem.sell,
+			[TAG_TOTALCOST] = (amount * shopItem.sell) / 100.0,
 			[TAG_ITEMNAME] = shopItem.name
 		}
 
@@ -1057,7 +1054,7 @@ if Modules == nil then
 		local parseInfo = {
 			[TAG_PLAYERNAME] = getPlayerName(cid),
 			[TAG_ITEMCOUNT] = shop_amount[cid],
-			[TAG_TOTALCOST] = shop_cost[cid] * shop_amount[cid],
+			[TAG_TOTALCOST] = (shop_cost[cid] * shop_amount[cid]) / 100.0,
 			[TAG_ITEMNAME] = shop_rlname[cid]
 		}
 
@@ -1138,7 +1135,7 @@ if Modules == nil then
 		local parseInfo = {
 			[TAG_PLAYERNAME] = getPlayerName(cid),
 			[TAG_ITEMCOUNT] = shop_amount[cid],
-			[TAG_TOTALCOST] = shop_cost[cid] * shop_amount[cid],
+			[TAG_TOTALCOST] = (shop_cost[cid] * shop_amount[cid]) / 100.0,
 			[TAG_ITEMNAME] = shop_rlname[cid]
 		}
 
@@ -1174,7 +1171,7 @@ if Modules == nil then
 		local parseInfo = {
 			[TAG_PLAYERNAME] = getPlayerName(cid),
 			[TAG_ITEMCOUNT] = shop_amount[cid],
-			[TAG_TOTALCOST] = shop_cost[cid] * shop_amount[cid],
+			[TAG_TOTALCOST] = (shop_cost[cid] * shop_amount[cid]) / 100.0,
 			[TAG_ITEMNAME] = shop_rlname[cid]
 		}
 

@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,7 +96,7 @@ void NetworkMessage::addPosition(const Position& pos)
 	addByte(pos.z);
 }
 
-void NetworkMessage::addItem(uint16_t id, uint8_t count)
+void NetworkMessage::addItem(uint16_t id, uint16_t count)
 {
 	const ItemType& it = Item::items[id];
 
@@ -104,9 +105,9 @@ void NetworkMessage::addItem(uint16_t id, uint8_t count)
 	addByte(0xFF); // MARK_UNMARKED
 
 	if (it.stackable) {
-		addByte(count);
+		add<uint16_t>(count);
 	} else if (it.isSplash() || it.isFluidContainer()) {
-		addByte(fluidMap[count & 7]);
+		add<uint16_t>(fluidMap[count & 7]);
 	}
 
 	if (it.isAnimation) {
@@ -122,9 +123,9 @@ void NetworkMessage::addItem(const Item* item)
 	addByte(0xFF); // MARK_UNMARKED
 
 	if (it.stackable) {
-		addByte(std::min<uint16_t>(0xFF, item->getItemCount()));
+		add<uint16_t>(std::min<uint16_t>(0xFFFF, item->getItemCount()));
 	} else if (it.isSplash() || it.isFluidContainer()) {
-		addByte(fluidMap[item->getFluidType() & 7]);
+		add<uint16_t>(fluidMap[item->getFluidType() & 7]);
 	}
 
 	if (it.isAnimation) {

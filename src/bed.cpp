@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -129,7 +130,7 @@ bool BedItem::trySleep(Player* player)
 			wakeUp(nullptr);
 		}
 
-		g_game.addMagicEffect(player->getPosition(), CONST_ME_POFF);
+		g_game.addEffect(player->getPosition(), CONST_ME_POFF);
 		return false;
 	}
 	return true;
@@ -160,7 +161,7 @@ bool BedItem::sleep(Player* player)
 	g_game.map.moveCreature(*player, *getTile());
 
 	// display 'Zzzz'/sleep effect
-	g_game.addMagicEffect(player->getPosition(), CONST_ME_SLEEP);
+	g_game.addEffect(player->getPosition(), CONST_ME_SLEEP);
 
 	// kick player after he sees himself walk onto the bed and it change id
 	uint32_t playerId = player->getID();
@@ -235,11 +236,7 @@ void BedItem::regeneratePlayer(Player* player) const
 		}
 
 		player->changeHealth(regen, false);
-		player->changeMana(regen);
 	}
-
-	const int32_t soulRegen = sleptTime / (60 * 15);
-	player->changeSoul(soulRegen);
 }
 
 void BedItem::updateAppearance(const Player* player)

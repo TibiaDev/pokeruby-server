@@ -1,6 +1,7 @@
 /**
- * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2017  Mark Samman <mark.samman@gmail.com>
+ * The Ruby Server - a free and open-source Pokémon MMORPG server emulator
+ * Copyright (C) 2018  Mark Samman (TFS) <mark.samman@gmail.com>
+ *                     Leandro Matheus <kesuhige@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -112,7 +113,7 @@ void House::updateDoorDescription() const
 
 		const int32_t housePrice = g_config.getNumber(ConfigManager::HOUSE_PRICE);
 		if (housePrice != -1) {
-			ss << " It costs " << (houseTiles.size() * housePrice) << " gold coins.";
+			ss << " It costs " << ((houseTiles.size() * housePrice) / 100.0f) << " dollars.";
 		}
 	}
 
@@ -163,8 +164,8 @@ bool House::kickPlayer(Player* player, Player* target)
 
 	Position oldPosition = target->getPosition();
 	if (g_game.internalTeleport(target, getEntryPosition()) == RETURNVALUE_NOERROR) {
-		g_game.addMagicEffect(oldPosition, CONST_ME_POFF);
-		g_game.addMagicEffect(getEntryPosition(), CONST_ME_TELEPORT);
+		g_game.addEffect(oldPosition, CONST_ME_POFF);
+		g_game.addEffect(getEntryPosition(), CONST_ME_TELEPORT);
 	}
 	return true;
 }
@@ -752,7 +753,7 @@ void Houses::payHouses(RentPeriod_t rentPeriod) const
 				}
 
 				std::ostringstream ss;
-				ss << "Warning! \nThe " << period << " rent of " << house->getRent() << " gold for your house \"" << house->getName() << "\" is payable. Have it within " << daysLeft << " days or you will lose this house.";
+				ss << "Warning! \nThe " << period << " rent of " << (house->getRent() / 100.0f ) << " dollars for your house \"" << house->getName() << "\" is payable. Have it within " << daysLeft << " days or you will lose this house.";
 				letter->setText(ss.str());
 				g_game.internalAddItem(player.getInbox(), letter, INDEX_WHEREEVER, FLAG_NOLIMIT);
 				house->setPayRentWarnings(house->getPayRentWarnings() + 1);

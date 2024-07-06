@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="125"  name="Electabuzz" nameDescription="an Electabuzz" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="125" corpse="6049" />
+	<type first="electric" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2491" />
+	<icon charged="26429" discharged="26648" />
+	<genders>
+		<gender name="male" percentage="75" />
+		<gender name="female" percentage="25" />
+	</genders>
+	<basestats>
+		<hp value= "65" />
+		<attack value="83" />
+		<defense value="57" />
+		<specialAttack value="95" />
+		<specialDefense value="85" />
+		<speed value="105" />
+	</basestats>
+	<evolutions>
+		<evolution to="electivire" at="anytime" stone="8923" />
+	</evolutions>
+	<flags>
+		<flag catchable="1" />		
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<pokemon number="12"  name="Butterfree" nameDescription="a Butterfree" blood="green" experience="23" speed="150" catchRate="50">
+	<look type="12" corpse="2820" />
+	<type first="bug" second="flying" />
+	<targetchange interval="4000" chance="0" />
+	<portrait id="2387" />
+	<icon charged="26485" discharged="26695" />
+	<genders>
+		<gender name="male" percentage="50" />
+		<gender name="female" percentage="50" />		
+	</genders>
+	<basestats>
+		<hp value= "60" />
+		<attack value="45" />
+		<defense value="50" />
+		<specialAttack value="80" />
+		<specialDefense value="80" />
+		<speed value="70" />
+	</basestats>
+	<flags>
+		<flag attackable="1" />
+		<flag hostile="1" />
+		<flag illusionable="1" />
+		<flag convinceable="1" />
+		<flag pushable="0" />
+		<flag canpushitems="0" />
+		<flag canpushcreatures="0" />
+		<flag targetdistance="1" />
+		<flag staticattack="90" />
+		<flag runonhealth="15" />
+		<flag canwalkonenergy="0" />
+		<flag canwalkonfire="0" />
+	</flags>
+	<attacks>
+		<attack name="melee" interval="2000" min="0" max="-20" />
+	</attacks>
+	<defenses armor="10" defense="10" />
+	<elements>
+		<element firePercent="-10" />
+	</elements>
+	<immunities>
+	</immunities>
+	<voices interval="5000" chance="10">
+	</voices>
+	<loot>
+	</loot>
+</pokemon>

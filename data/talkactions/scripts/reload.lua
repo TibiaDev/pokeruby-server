@@ -23,13 +23,12 @@ local reloadTypes = {
 
 	["items"] = { targetType = RELOAD_TYPE_ITEMS, name = "items" },
 
-	["monster"] = { targetType = RELOAD_TYPE_MONSTERS, name = "monsters" },
-	["monsters"] = { targetType = RELOAD_TYPE_MONSTERS, name = "monsters" },
+	["pokemon"] = { targetType = RELOAD_TYPE_POKEMONS, name = "pokemons" },
+	["pokemons"] = { targetType = RELOAD_TYPE_POKEMONS, name = "pokemons" },
 
 	["mount"] = { targetType = RELOAD_TYPE_MOUNTS, name = "mounts" },
 	["mounts"] = { targetType = RELOAD_TYPE_MOUNTS, name = "mounts" },
 
-	["move"] = { targetType = RELOAD_TYPE_MOVEMENTS, name = "movements" },
 	["movement"] = { targetType = RELOAD_TYPE_MOVEMENTS, name = "movements" },
 	["movements"] = { targetType = RELOAD_TYPE_MOVEMENTS, name = "movements" },
 
@@ -42,15 +41,18 @@ local reloadTypes = {
 	["raid"] = { targetType = RELOAD_TYPE_RAIDS, name = "raids" },
 	["raids"] = { targetType = RELOAD_TYPE_RAIDS, name = "raids" },
 
-	["spell"] = { targetType = RELOAD_TYPE_SPELLS, name = "spells" },
-	["spells"] = { targetType = RELOAD_TYPE_SPELLS, name = "spells" },
+	["move"] = { targetType = RELOAD_TYPE_MOVES, name = "moves" },
+	["moves"] = { targetType = RELOAD_TYPE_MOVES, name = "moves" },
 
 	["talk"] = { targetType = RELOAD_TYPE_TALKACTIONS, name = "talk actions" },
 	["talkaction"] = { targetType = RELOAD_TYPE_TALKACTIONS, name = "talk actions" },
 	["talkactions"] = { targetType = RELOAD_TYPE_TALKACTIONS, name = "talk actions" },
 
-	["weapon"] = { targetType = RELOAD_TYPE_WEAPONS, name = "weapons" },
-	["weapons"] = { targetType = RELOAD_TYPE_WEAPONS, name = "weapons" }
+	["pokeball"] = { targetType = RELOAD_TYPE_POKEBALLS, name = "pokeballs" },
+	["pokeballs"] = { targetType = RELOAD_TYPE_POKEBALLS, name = "pokeballs" },
+
+	["food"] = { targetType = RELOAD_TYPE_FOODS, name = "foods" },
+	["foods"] = { targetType = RELOAD_TYPE_FOODS, name = "foods" }
 }
 
 function onSay(player, words, param)
